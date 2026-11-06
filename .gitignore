@@ -1,10 +1,10 @@
-.venv/
-__pycache__/
-.pytest_cache/
-*.pyc
+node_modules/
+dist/
 datos/
 Informes/
 demo/
-build/
-dist/
-*.spec
+RespaldosPrevios/
+playwright-report/
+test-results/
+*.log
+.env

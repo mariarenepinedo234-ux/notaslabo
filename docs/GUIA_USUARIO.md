@@ -1,28 +1,26 @@
-# Guía breve · CEICOM
+# Guía breve · CEICOM web
 
-1. **Configuración:** complete institución, destinatario, docente, cargos, texto de firma y logo opcional (PNG/JPG). Ajuste la escala y los horarios. No se presuponen nombres oficiales. Los horarios usan una línea `Turno=Días y horas`; al inscribir puede personalizarlos por grupo. El catálogo permite agregar, editar y desactivar cursos.
-2. **Estudiantes:** agregue nombres y apellidos; CI y teléfono son opcionales. Busque por nombre o CI. Editar/desactivar conserva las inscripciones e informes previos.
-3. **Inscripciones:** elija estudiante y un curso, turno/grupo, horario y fecha de ingreso. Repita para cada curso individual. El sistema avisa si ya existe una inscripción activa; confirme reinscripción deliberada solo cuando corresponda. Puede registrar conclusión/retiro y fecha final sin eliminar notas pendientes.
-4. **Calificaciones:** seleccione inscripción, pulse Guardar nota e indique nota y mes académico en formato AAAA-MM. `0` significa cero; `—` significa que todavía no se registró nota. Guardar conserva la nota como borrador pendiente de entrega.
-5. **Informes:** seleccione Diseño Gráfico o Paquetes Sueltos, período y turno opcional. Consulte pendientes, marque **solo** las notas que va a incluir y cree la vista previa. Puede exportar borrador PDF/Excel para revisión; eso no presenta nada.
-6. **Después de entregar a Dirección:** desde la vista previa o Historial abra el borrador, indique responsable y fecha real, marque «Confirmo que YA ENTREGUÉ» y pulse Confirmar entrega. Revise la confirmación final. Desde entonces solo esas notas dejan de aparecer como pendientes.
-7. **Repita por la otra categoría.** No se mezclan cursos de Diseño Gráfico con Paquetes Sueltos. Los informes agrupan por turno y el PDF comienza cada turno en una página distinta. Cada categoría sin pendientes muestra un aviso y no genera un informe vacío.
-8. **Historial:** busque por categoría, turno, estado o `2026-11`. Abra el informe y exporte sus copias PDF/XLSX. Los datos se conservan como estaban al cierre, aunque cambie el estudiante o catálogo. Los originales internos no deben modificarse manualmente.
-9. **Rectificar:** seleccione la versión cerrada más reciente, elija la calificación, nueva nota y motivo. Indique responsable, fecha y confirme que la rectificación ya se entregó. Se crea una versión nueva; la original sigue disponible. Para corregir más notas, repita sobre la nueva versión.
-10. **Respaldo:** en Configuración pulse Crear copia de seguridad y elija preferiblemente otro dispositivo. Para recuperar, seleccione un ZIP CEICOM válido y confirme el reemplazo. Se verifica integridad y se guarda un respaldo del estado anterior en `RespaldosPrevios`.
+1. Instale Node.js 24 LTS. Extraiga el ZIP y ejecute `npm.cmd install` y `npm.cmd run dev` en la carpeta de `package.json`.
+2. Abra la dirección indicada en la terminal y manténgala abierta. El botón «Probar con datos ficticios» permite explorar sin alterar los datos reales.
+3. En **Configuración**, complete destinatario, docente, cargos, firma, logo y escala. No se presuponen nombres oficiales. Configure horarios y catálogo.
+4. En **Estudiantes**, pulse Nuevo estudiante. Nombres y apellidos son obligatorios; CI y teléfono opcionales. Puede buscar, editar y desactivar.
+5. En **Inscripciones**, seleccione alumno y un curso individual. Repita para cada curso que realmente curse. Personalice turno, horario e ingreso. La reinscripción deliberada requiere marcar la opción explícita.
+6. En **Calificaciones**, pulse Registrar nota. Indique valor y mes académico. Cero es válido; «—» significa sin nota. Guardar conserva la nota pendiente de entrega.
+7. En **Informes**, elija una de las dos categorías, mes y turno opcional. Consulte pendientes, marque las notas incluidas y genere una vista previa. PDF y Excel se pueden revisar sin presentar nada.
+8. **Después de entregar a Dirección**, indique responsable y fecha real, marque «YA ENTREGUÉ» y confirme el cierre. Solo esas notas dejan de salir como pendientes. Repita con la otra categoría si corresponde.
+9. En **Historial**, filtre y abra cualquier informe. Descargue sus documentos o cree una rectificación con notas corregidas y motivo. Al confirmar que la rectificación fue entregada se crea una nueva versión; la anterior queda disponible.
+10. En **Configuración**, descargue respaldos y guárdelos en otro dispositivo. Restaurar requiere un ZIP CEICOM web íntegro y confirmación; se conserva una copia del estado anterior.
 
-## Ejemplo de la regla principal
+## Ejemplo
 
-Juan (ejemplo ficticio) cursa Illustrator y Photoshop. Registre ambas notas de octubre. En noviembre prepare el informe con **solo Illustrator** y confirme su entrega después de presentarlo. En diciembre aparecerá pendiente Photoshop, aunque su nota ya estuviera guardada. Illustrator seguirá en Historial. La vista previa de diciembre no cambiará estos estados.
+Juan (ficticio) está inscrito a Illustrator y Photoshop. Si en noviembre confirma solo Illustrator, en diciembre seguirá pendiente Photoshop. María (ficticia) tiene Power BI guardado: seguirá pendiente hasta confirmar su entrega. Ninguna vista previa cambia esos estados.
 
-María (ejemplo ficticio) tiene una nota de Power BI guardada. Hasta confirmar la entrega de su informe de Paquetes Sueltos seguirá pendiente.
+Una nota de octubre puede entregarse el 4 de noviembre: el mes de la nota y la fecha de entrega son campos independientes.
 
-Una carta fechada el 4 de noviembre puede informar notas de octubre: el mes de nota y la fecha de entrega son campos independientes.
+## Si no abre
 
-## Antes del primer uso real en Windows
-
-Compile con `build_windows.bat`, extraiga el portable en una carpeta escribible, abra `SistemaAcademico.exe --demo` y complete el ejemplo. Verifique impresión/PDF, Excel, respaldo y restauración en una carpeta de prueba. Después abra el programa sin `--demo` para usar la base de producción vacía. Mantenga el programa y toda su carpeta `_internal` juntos.
-
-## Si la ventana se cierra o no aparece
-
-Descargue la versión actual y extraiga todo el ZIP antes de abrirlo. Abra `iniciar_windows.bat` para usar el código; para compilar use `build_windows.bat`. Si falta Python 3.12 x64, el nuevo lanzador mostrará las instrucciones. La consola queda abierta con el resultado. Comparta el texto del error o el archivo `%TEMP%\CEICOM_iniciar.log` (inicio), `%TEMP%\CEICOM_compilar.log` (compilación) o `%TEMP%\CEICOM_aplicacion.log` (aplicación/EXE). No copie solo el EXE fuera de su carpeta `_internal`.
+- Compruebe `node --version`: necesita Node 24 o posterior.
+- Ejecute los comandos desde la carpeta que contiene `package.json`, fuera del ZIP.
+- Si no abre automáticamente el navegador, escriba `http://127.0.0.1:3000`.
+- Mantenga la terminal abierta. Si el puerto está ocupado, cierre la otra instancia.
+- Comparta el texto que aparezca en la terminal si se produce un error.

@@ -1,110 +1,110 @@
-# CEICOM · Sistema de control académico
+# CEICOM · Aplicación web de gestión académica
 
-## Descargar esta primera versión
+Aplicación local para el navegador, en español. **JavaScript de principio a fin: no usa Python, PySide6, PyInstaller ni un ejecutable Windows.** React + Node.js + SQLite integrado en Node.
 
-En GitHub, seleccione la rama `ceicom-primera-version` y use **Code → Download ZIP** para descargar el proyecto completo. También está disponible el paquete autocontenido [CEICOM_Fuentes_v1.zip](entregables/CEICOM_Fuentes_v1.zip): abra ese archivo y pulse el botón de descarga de GitHub. Incluye código, pruebas, guía y ejemplos ficticios; es código fuente, no un ejecutable Windows compilado. Los informes de ejemplo están también en [ejemplos_ficticios](ejemplos_ficticios/).
+## Abrir en Windows
 
-Primera versión funcional de escritorio en español, offline, con Python 3.12+, PySide6 y SQLite. Colores guindo, amarillo y gris. Producción inicia vacía; incluye el catálogo solicitado de 20 cursos, con inscripciones individuales independientes.
-
-## Abrir el portable compilado (sin Python)
-
-Ya existe una compilación Windows con pruebas y comprobación automática del arranque aprobadas: [descargar desde GitHub Actions](https://github.com/mariarenepinedo234-ux/notaslabo/actions/runs/42228580481#artifacts). Inicie sesión en GitHub y, en **Artifacts**, descargue **CEICOM-Portable-Windows**.
-
-Extraiga el ZIP descargado; dentro encontrará `CEICOM_Portable_Windows.zip`. Extraiga también ese archivo y abra `SistemaAcademico/SistemaAcademico.exe`. Conserve `_internal` junto al EXE. Para usar los datos ficticios, abra una terminal dentro de esa carpeta y ejecute `SistemaAcademico.exe --demo`. Sin ese argumento abre la base de producción vacía.
-
-## Ejecutar desde el código
-
-En Windows, instale Python **3.12 de 64 bits** y ejecute `iniciar_windows.bat`. Para demostración: `iniciar_windows.bat --demo`.
-
-En Linux (requiere bibliotecas del sistema compatibles con Qt y un escritorio):
-
-```sh
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python main.py
-# Datos ficticios en carpeta independiente:
-.venv/bin/python main.py --demo
-```
-
-El modo demo usa `demo/datos` y `demo/Informes`, sin mezclar información con producción. No se importan nombres de estudiantes del documento de referencia.
-
-## Si al ejecutar no aparece nada
-
-Extraiga **todo** el ZIP con «Extraer todo» antes de abrir archivos. Para usar el código, abra `iniciar_windows.bat`; `build_windows.bat` fabrica el portable, no abre directamente la aplicación.
-
-Los BAT comprueban Python **3.12 x64** y dejan el resultado visible hasta pulsar una tecla. Si Python falta, muestran cómo instalarlo. El primer inicio requiere Internet para instalar dependencias; los siguientes reutilizan las bibliotecas instaladas sin descargarlas otra vez.
-
-Si Python está instalado fuera del PATH, puede indicar su ruta con `set "CEICOM_PYTHON=C:\ruta\python.exe"` antes de ejecutar el BAT. Se comprueba que sea Python 3.12 x64.
-
-Si se produce un fallo, copie el texto de la ventana o abra el registro:
-
-- Inicio desde código: `%TEMP%\CEICOM_iniciar.log`.
-- Compilación: `%TEMP%\CEICOM_compilar.log`.
-- Fallo de la aplicación o del EXE: `%TEMP%\CEICOM_aplicacion.log`.
-
-Pegue esa ruta en la barra de direcciones del Explorador de Windows. El EXE también muestra un aviso nativo cuando falla la importación de la interfaz. Los registros no garantizan capturar fallos nativos de Windows o del propio proceso antes de ejecutar Python.
-
-## Obtener SistemaAcademico.exe en Windows 11
-
-1. Extraiga el código en una carpeta escribible en Windows 11 x64.
-2. Instale Python 3.12 x64 con el lanzador `py` (solo en la máquina que compila).
-3. Ejecute `build_windows.bat`. Instala dependencias fijadas, ejecuta las pruebas y compila con PyInstaller.
-4. Obtendrá `dist/SistemaAcademico/SistemaAcademico.exe` y `dist/CEICOM_Portable_Windows.zip`.
-5. Copie **toda la carpeta SistemaAcademico**, incluido `_internal`, a su USB. El equipo destino no necesita Python, Excel, servidor ni Internet. Extraiga el ZIP antes de ejecutar.
-
-También se incluye un flujo de GitHub Actions para compilar en Windows al subir el proyecto o iniciarlo manualmente. Su inclusión no significa que ese flujo se haya ejecutado. PyInstaller compila para el sistema donde se ejecuta; no genera un exe de Windows desde Linux.
-
-**Estado de validación:** 16 pruebas aprobadas en Linux y 2 pruebas Windows omitidas allí; las 18 pruebas, la compilación PyInstaller y el arranque del EXE con sus siete pantallas se completaron correctamente en un runner Windows de GitHub Actions. La prueba de arranque usa Qt offscreen. La interacción manual, impresión física y uso en una USB en Windows 11 siguen pendientes de comprobar en el equipo del usuario.
-
-## Datos portables y USB de solo lectura
-
-Junto al exe (o `main.py` al desarrollar):
-
-- `datos/ceicom.sqlite3`: SQLite con claves foráneas, restricciones y auditoría.
-- `Informes/AAAA/MM/`: PDF y XLSX por **período del informe**; las filas conservan además su propio mes de nota.
-- `RespaldosPrevios/`: copia automática antes de restaurar.
-
-Un informe pendiente de noviembre puede incluir una nota de octubre todavía no entregada. La fecha real de presentación se registra aparte. Los nombres incluyen categoría, período, ID y versión para evitar colisiones. Los borradores se identifican como tales en archivos y contenido.
-
-Si el USB no permite escritura, antes de iniciar en CMD:
+1. Instale **Node.js 24 LTS** desde https://nodejs.org/ (incluye npm).
+2. Descargue el proyecto y use **Extraer todo**. Abra una terminal dentro de la carpeta que contiene `package.json`.
+3. Ejecute:
 
 ```bat
-set "CEICOM_HOME=%LOCALAPPDATA%\CEICOM"
-SistemaAcademico.exe
+npm.cmd install
+npm.cmd run dev
 ```
 
-En ese caso los datos quedan en ese equipo, no en el USB: haga respaldo para transportarlos. Use siempre un solo proceso por carpeta de datos; la aplicación utiliza un bloqueo de instancia. Cierre la aplicación antes de retirar el USB.
+El servidor intenta abrir el navegador automáticamente en Windows. Si no se abre, escriba **http://127.0.0.1:3000** en su navegador. Mantenga la terminal abierta mientras utiliza el sistema. Para cerrar, pulse `Ctrl+C` en la terminal.
 
-## Regla de entrega
+La instalación inicial necesita Internet. Después de instalar, la aplicación funciona localmente sin Internet; las fuentes, los iconos y los recursos se sirven desde el proyecto. No requiere Excel, Python ni compiladores.
 
-Guardar una nota y generar/exportar una vista previa **no la presentan**. Solo el cierre explícito de un informe, con responsable y fecha, marca sus notas seleccionadas. Las pendientes se arrastran a meses posteriores, incluso si la inscripción está concluida. Inscripciones sin nota se distinguen de una nota cero y no se incluyen en informes de calificaciones. Cada categoría se procesa por separado; no se emiten informes vacíos.
+En Linux/macOS, los comandos equivalentes son `npm install` y `npm run dev`.
 
-El cierre usa transacción con bloqueo de escritura y verifica que la vista previa no esté obsoleta. Los informes cerrados tienen instantáneas inmutables de filas, nombres, curso, horario y encabezado, incluido el logo. Las notas presentadas quedan protegidas contra edición. Una corrección genera una versión nueva de la instantánea con motivo, responsable, fecha y enlace a la versión anterior. Las siguientes rectificaciones deben hacerse sobre la versión más reciente. La nota original permanece en Calificaciones para conservar trazabilidad: la corrección se consulta en la versión rectificada del informe.
+## Probar el ejemplo
 
-PDF/XLSX se archivan al cerrar. Si falla la escritura, el cierre queda registrado y puede reintentarse desde Historial. La reexportación copia los originales conservados byte por byte; si se perdieron, reconstruye los documentos desde la instantánea, con el contenido original. Una regeneración con otras versiones de bibliotecas puede producir bytes distintos sin cambiar los datos. No edite manualmente los originales archivados; exporte una copia para editar Excel.
+En el panel pulse **Probar con datos ficticios**. También puede entrar en Configuración → Abrir demostración ficticia. La franja amarilla identifica ese espacio. Pulse **Volver a mis datos** para salir.
+
+Los datos de demostración se guardan en `demo/datos/academico.sqlite`, separados de producción (`datos/academico.sqlite`). Se crean dos estudiantes ficticios con Illustrator, Photoshop y Power BI, y notas de octubre de 2026. No se importan estudiantes reales del documento de muestra.
+
+Para abrir la demostración desde la terminal puede usar `npm.cmd run dev:demo`.
+
+## Qué incluye
+
+- Panel con estudiantes, inscripciones activas, notas pendientes e informes cerrados del mes.
+- Estudiantes: alta, búsqueda, edición y desactivación; CI y teléfono opcionales.
+- Inscripciones por curso individual y turno/grupo; horario editable, estados y reinscripción deliberada.
+- Calificaciones finales por inscripción, filtros por curso/turno/mes, escala configurable y diferencia entre cero y sin nota.
+- Dos informes separados: Diseño Gráfico y Paquetes Sueltos. Selección explícita de notas, borradores y confirmación de entrega.
+- Historial filtrable por categoría, año, mes, turno y estado; instantáneas inmutables y rectificaciones con nuevas versiones.
+- PDF carta horizontal con agrupación por turno y cabeceras repetidas; Excel editable; logo opcional.
+- Copias ZIP de SQLite e informes con checksums y restauración validada con confirmación y respaldo previo.
+- Catálogo inicial exacto de 20 cursos y configuración institucional, docente, firmas y horarios.
+- Interfaz adaptable a escritorio, tablet y móvil.
+
+## Regla principal: guardar no es presentar
+
+Registrar una nota, consultar pendientes, generar una vista previa o descargar un PDF/Excel **no marca la nota como presentada**. Solo la confirmación expresa «YA ENTREGUÉ», con responsable y fecha real, cierra el informe y marca sus notas seleccionadas. Las demás siguen pendientes, también en períodos futuros y aunque se concluya una inscripción.
+
+Si Illustrator se presenta y Photoshop no, el estudiante seguirá pendiente únicamente por Photoshop. El mes académico de la nota, el período del informe y la fecha real de entrega se conservan de forma independiente.
+
+El cierre verifica que la vista previa siga vigente y usa una transacción SQLite. Los informes históricos, sus filas y las notas presentadas quedan protegidos. Rectificar modifica una **nueva versión del informe**, con motivo y responsable: la nota original sigue en Calificaciones y el valor corregido se consulta en la versión rectificada. No se borran antecedentes.
+
+## Archivos y respaldos
+
+- `datos/academico.sqlite`: base de producción creada automáticamente.
+- `Informes/AAAA/MM/`: PDF/XLSX archivados por período, categoría, ID y versión.
+- `demo/`: demostración independiente.
+- `RespaldosPrevios/`: copias anteriores a una restauración.
+
+El botón **Crear copia de seguridad** descarga un ZIP. El navegador controla la carpeta de descarga; copie el respaldo a otro dispositivo. No se puede detectar desde el navegador si eligió la misma USB. Antes de restaurar se valida estructura, integridad SQLite, CRC y SHA256; se guarda una copia previa. La sustitución se revierte ante errores detectados, sin garantizar recuperación ante un corte eléctrico.
+
+La reexportación conserva los originales archivados byte por byte. Si faltan, los reconstruye desde la instantánea; los bytes pueden variar según las bibliotecas, manteniendo el contenido histórico. No edite directamente los originales internos: descargue copias para modificar Excel.
+
+Para usar otro disco escribible, configure `CEICOM_HOME` antes de iniciar:
+
+```bat
+set "CEICOM_HOME=D:\MisDatosCEICOM"
+npm.cmd run dev
+```
+
+Esta versión crea una base web nueva y no importa automáticamente bases/respaldos de la versión de escritorio. No sobrescriba información antigua: conserve una copia si ya tenía datos reales.
+
+## Compilar y ejecutar la versión optimizada
+
+```bat
+npm.cmd run build
+npm.cmd start
+```
+
+`npm.cmd run dev` inicia directamente la app con recarga de cambios; no requiere ejecutar `build` antes. Para otro puerto: `set "PORT=3001"` antes de iniciar. Si el puerto ya está ocupado, cierre la otra instancia o cambie `PORT`.
 
 ## Pruebas
 
-```sh
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
+```bat
+npm.cmd test
+npm.cmd run build
+npx.cmd playwright install chromium
+npm.cmd run test:e2e
 ```
 
-En Linux sin pantalla: `QT_QPA_PLATFORM=offscreen python -m pytest -q`. Las pruebas cubren entrega explícita, arrastre, cero/sin nota, categorías, duplicados, vistas previas obsoletas, cierre transaccional, historial, rectificaciones, PDF/XLSX, paginación, respaldo/restauración y apertura de las siete pantallas de escritorio. Usan directorios temporales, nunca la base de producción.
+Las pruebas de Node cubren reglas académicas, transacciones, categorías, instantáneas, rectificación, PDF/XLSX, respaldo/restauración y API. Las de navegador ejecutan el registro de estudiante, dos inscripciones, notas, exportación, cierre selectivo, arrastre mensual, historial y vista móvil. Todos los tests utilizan carpetas temporales.
+
+En un entorno que ya tenga Chromium, puede definir `CEICOM_CHROMIUM` con la ruta del ejecutable para no descargarlo. Esto solo afecta a las pruebas, no al uso normal de la aplicación.
+
+GitHub Actions valida Node 24 en Linux y Windows. El resultado de cada ejecución se consulta en la pestaña Actions del repositorio; incluir el flujo no implica que ya haya pasado.
 
 ## Estructura
 
-- `ceicom/store.py`: esquema SQLite, catálogo, validación, auditoría y reglas de negocio.
-- `ceicom/ui.py`: siete pantallas de escritorio y confirmaciones.
-- `ceicom/exports.py`: carta y planillas institucionales PDF carta horizontal/XLSX editable.
-- `ceicom/backup.py`: SQLite Backup API, ZIP con checksums, validación y restauración con copia previa.
-- `ceicom/paths.py`, `demo.py`: portabilidad y demostración separada.
-- `tests/`: pruebas automáticas; `docs/GUIA_USUARIO.md`: guía operativa.
+- `src/`: interfaz React y estilos.
+- `server/store.mjs`: SQLite, validaciones y reglas académicas.
+- `server/app.mjs`: API local y serialización de escrituras.
+- `server/index.mjs`: inicio único de servidor + Vite.
+- `server/exports.mjs`: PDF/XLSX desde instantáneas.
+- `server/backup.mjs`: respaldo y restauración.
+- `tests/`, `e2e/`: pruebas de Node y navegador.
+- `docs/GUIA_USUARIO.md`: guía del docente.
 
-## Alcance y límites de esta primera versión
+## Alcance
 
-Una nota final por inscripción; el esquema reserva `tipo` para extender a parciales. Las rectificaciones de esta versión corrigen notas (una fila por operación en la interfaz); no reemplazan alumnos ni añaden inscripciones a un informe cerrado. Los turnos y horarios son configurables y cada inscripción conserva su horario. La ruta de datos/informes se configura con `CEICOM_HOME`; no hay selector independiente de archivo. Historial permite combinar filtros por categoría, año, mes, turno y estado, además de buscar por texto. No incluye resumen de contenidos impartidos (opcional), sincronización multiusuario ni firma digital. La configuración institucional comienza sin nombres oficiales: complete destinatario, docente y cargos antes de producir informes reales.
+Aplicación local para un docente: el servidor escucha únicamente en `127.0.0.1`. No es un servicio público ni incluye autenticación multiusuario. Otras pestañas comparten los datos del mismo servidor. Las escrituras se serializan, pero use una sola instancia de servidor por carpeta de datos. El historial rechaza cierres repetidos o vistas previas obsoletas.
 
-Respaldos: se verifica integridad SQLite y checksums de archivos antes de restaurar; se conserva copia previa. La restauración revierte errores de operación detectados; no sustituye un respaldo en otro dispositivo ni garantiza recuperación ante corte eléctrico durante el reemplazo de archivos.
-
-El diseño toma como referencia la carta y separación por turno del documento `Noviembre 2026.docx`: mejora legibilidad con filas por inscripción, encabezados repetidos, paginación y meses explícitos. El catálogo procede de las especificaciones, ya que la muestra contiene cursos adicionales y columnas que no deben interpretarse como inscripción a un paquete completo.
+La primera versión web admite una nota final por inscripción, con el campo `tipo` preparado para ampliar a parciales. No incluye el resumen opcional de contenidos impartidos. Se mantiene la referencia funcional original en `docs/ESPECIFICACIONES.md`; la petición posterior del usuario sustituye la tecnología de escritorio por esta aplicación web.

@@ -1,0 +1,46 @@
+name: Validar CEICOM web
+on:
+  push:
+    branches: [main, ceicom-primera-version]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: navegador-linux
+          path: test-results/
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm.cmd install
+      - run: npm.cmd test
+      - run: npm.cmd run build
+      - run: npx.cmd playwright install chromium
+      - run: npm.cmd run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: navegador-windows
+          path: test-results/
