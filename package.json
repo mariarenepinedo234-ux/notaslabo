@@ -25,7 +25,8 @@
     "vite": "7.3.7"
   },
   "devDependencies": {
-    "@playwright/test": "1.56.1"
+    "@playwright/test": "1.56.1",
+    "pdf-parse": "1.1.1"
   },
   "overrides": {
     "exceljs": {

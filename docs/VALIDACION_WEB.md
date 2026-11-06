@@ -15,3 +15,7 @@ Verificaciones realizadas en Linux con Node 24:
 Se incluye CI en Windows y Linux para comprobar instalación, pruebas, compilación y navegador. Sus resultados remotos se verifican después de publicar el commit; no se presupone que han pasado.
 
 La aplicación se ejecuta localmente. No se ha desplegado un sitio público ni se ha probado interacción manual en el equipo Windows del usuario.
+
+## Planilla por estudiante en papel carta
+
+Se añadieron pruebas de agrupación por ID (incluidos homónimos), reinscripciones, cero válido, doce columnas de cursos, lectura real del PDF con fuentes incorporadas, tamaño de página carta, nombres impresos una sola vez, configuración de impresión Excel y conservación del formato histórico anterior. La suite de Node pasa con 22 pruebas y el navegador con 3, incluido el botón que abre el PDF sin confirmar entrega. Se inspeccionó visualmente una planilla carta vertical de doce cursos y se incluyó una muestra explícitamente ficticia en ejemplos/.

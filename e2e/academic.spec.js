@@ -132,3 +132,48 @@ test("demostración aislada y diseño móvil sin desbordamiento", async ({
     page.getByText("Juan (FICTICIO) Ejemplo", { exact: true }),
   ).toHaveCount(0);
 });
+
+test("vista previa agrupa al estudiante y abre el PDF carta sin presentar notas", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Probar con datos ficticios" })
+    .click();
+  await page.getByRole("button", { name: /^Informes/ }).click();
+  await page.getByLabel("Mes académico del informe").fill("2026-11");
+  await page.getByRole("button", { name: "Consultar pendientes" }).click();
+  await page
+    .getByRole("checkbox", { name: "Seleccionar todas las notas" })
+    .check();
+  await page.getByRole("button", { name: "Vista previa (2)" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("row").filter({ hasText: "Juan (FICTICIO) Ejemplo" }),
+  ).toHaveCount(1);
+  await expect(
+    dialog.getByRole("columnheader", { name: "Illustrator", exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("columnheader", { name: "Photoshop", exact: true }),
+  ).toBeVisible();
+  const row = dialog
+    .getByRole("row")
+    .filter({ hasText: "Juan (FICTICIO) Ejemplo" });
+  await expect(
+    row.getByRole("cell", { name: "85", exact: true }),
+  ).toBeVisible();
+  await expect(row.getByRole("cell", { name: "0", exact: true })).toBeVisible();
+  const popupPromise = page.waitForEvent("popup");
+  const responsePromise = page.waitForResponse((response) =>
+    response.url().includes("/export/pdf"),
+  );
+  await dialog.getByRole("button", { name: "Abrir PDF para imprimir" }).click();
+  const popup = await popupPromise;
+  expect((await responsePromise).ok()).toBe(true);
+  await expect.poll(() => popup.url()).toMatch(/^blob:/);
+  await popup.close();
+  await expect(
+    dialog.getByRole("button", { name: "Confirmar entrega y cerrar informe" }),
+  ).toBeDisabled();
+});

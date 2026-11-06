@@ -24,3 +24,9 @@ Una nota de octubre puede entregarse el 4 de noviembre: el mes de la nota y la f
 - Si no abre automáticamente el navegador, escriba `http://127.0.0.1:3000`.
 - Mantenga la terminal abierta. Si el puerto está ocupado, cierre la otra instancia.
 - Comparta el texto que aparezca en la terminal si se produce un error.
+
+## Planilla agrupada y lista para imprimir
+
+En una nueva vista previa, cada estudiante aparece una sola vez y sus cursos son columnas con las notas respectivas. Use **Abrir PDF para imprimir** y, en el visor, seleccione papel **Carta** y escala **100 % / Tamaño real**. Hasta 12 cursos se imprimen en carta vertical, con encabezados de cursos verticales como la muestra; con más cursos se usa carta horizontal. La vista previa, PDF y Excel comparten la misma agrupación.
+
+Los documentos históricos ya cerrados mantienen su diseño anterior. No se presenta ninguna nota por imprimir, descargar o cambiar el diseño. Al actualizar los archivos de la aplicación conserve las carpetas de datos e informes.

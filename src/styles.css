@@ -1883,3 +1883,35 @@ select {
     line-height: 2.2;
   }
 }
+
+.matrix-preview .vertical-course {
+  display: block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  max-height: 145px;
+  white-space: normal;
+  margin: auto;
+  font-size: 10px;
+  color: #6d5368;
+  letter-spacing: 0;
+}
+.matrix-preview table th {
+  vertical-align: middle;
+  padding: 12px 8px;
+  background: #faf4df;
+}
+.matrix-preview table td {
+  white-space: pre-line;
+}
+.matrix-preview .matrix-grade {
+  text-align: center;
+  min-width: 45px;
+  color: #61405b;
+  font-weight: 600;
+}
+.print-hint {
+  font-size: 11px;
+  color: #8a7189;
+  line-height: 1.8;
+  margin: 0 0 15px;
+}

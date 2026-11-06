@@ -1,3 +1,8 @@
+import {
+  REPORT_FORMAT,
+  reportMatrix,
+  gradeCell,
+} from "../shared/report-layout.js";
 import React, { useState, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -96,7 +101,9 @@ function Table({ headers, children, empty }) {
         <thead>
           <tr>
             {headers.map((h, i) => (
-              <th key={i}>{h}</th>
+              <th key={i} scope="col">
+                {h}
+              </th>
             ))}
           </tr>
         </thead>
@@ -2153,48 +2160,88 @@ function App() {
                 <p>Rectificación: {report.motivo}</p>
               </div>
             )}
-            <Table
-              headers={[
-                "ESTUDIANTE",
-                "CURSO",
-                "TURNO",
-                "NOTA",
-                "MES DE NOTA",
-                ...(rectify ? ["NUEVA NOTA"] : []),
-              ]}
-            >
-              {report.contenido.filas.map((row) => (
-                <tr key={row.grade_id}>
-                  <td>
-                    <strong>{row.estudiante}</strong>
-                  </td>
-                  <td>{row.curso}</td>
-                  <td>{row.turno}</td>
-                  <td>{row.valor}</td>
-                  <td>{row.periodo}</td>
-                  {rectify && (
+            {!rectify && report.contenido.formato === REPORT_FORMAT ? (
+              <ReportMatrixPreview snapshot={report.contenido} />
+            ) : (
+              <Table
+                headers={[
+                  "ESTUDIANTE",
+                  "CURSO",
+                  "TURNO",
+                  "NOTA",
+                  "MES DE NOTA",
+                  ...(rectify ? ["NUEVA NOTA"] : []),
+                ]}
+              >
+                {report.contenido.filas.map((row) => (
+                  <tr key={row.grade_id}>
                     <td>
-                      <input
-                        type="number"
-                        aria-label={`Rectificar ${row.estudiante} ${row.curso}`}
-                        min={data.settings.minimo}
-                        max={data.settings.maximo}
-                        step="0.01"
-                        value={corrections[row.grade_id] ?? ""}
-                        placeholder="Sin cambio"
-                        onChange={(e) => {
-                          const next = { ...corrections };
-                          if (e.target.value === "") delete next[row.grade_id];
-                          else next[row.grade_id] = e.target.value;
-                          setCorrections(next);
-                        }}
-                      />
+                      <strong>{row.estudiante}</strong>
                     </td>
-                  )}
-                </tr>
-              ))}
-            </Table>
+                    <td>{row.curso}</td>
+                    <td>{row.turno}</td>
+                    <td>{row.valor}</td>
+                    <td>{row.periodo}</td>
+                    {rectify && (
+                      <td>
+                        <input
+                          type="number"
+                          aria-label={`Rectificar ${row.estudiante} ${row.curso}`}
+                          min={data.settings.minimo}
+                          max={data.settings.maximo}
+                          step="0.01"
+                          value={corrections[row.grade_id] ?? ""}
+                          placeholder="Sin cambio"
+                          onChange={(e) => {
+                            const next = { ...corrections };
+                            if (e.target.value === "")
+                              delete next[row.grade_id];
+                            else next[row.grade_id] = e.target.value;
+                            setCorrections(next);
+                          }}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </Table>
+            )}
             <div className="report-export">
+              <button
+                className="primary"
+                disabled={busy}
+                onClick={() => {
+                  const view = window.open("about:blank", "_blank");
+                  if (!view) {
+                    setNotice({
+                      error: true,
+                      text: "Permite la nueva pestaña para abrir el PDF.",
+                    });
+                    return;
+                  }
+                  act(async () => {
+                    try {
+                      const response = await fetch(
+                        `/api/reports/${report.id}/export/pdf`,
+                        { headers: { "X-CEICOM-Demo": demo ? "1" : "0" } },
+                      );
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error);
+                      }
+                      const url = URL.createObjectURL(await response.blob());
+                      view.location.href = url;
+                      setTimeout(() => URL.revokeObjectURL(url), 300000);
+                    } catch (error) {
+                      view.close();
+                      throw error;
+                    }
+                  });
+                }}
+              >
+                <FileText size={16} />
+                Abrir PDF para imprimir
+              </button>
               {exportButton("pdf")}
               {exportButton("xlsx")}
               {report.estado !== "borrador" && !rectify && (
@@ -2287,6 +2334,43 @@ function App() {
           </div>
         </Modal>
       )}
+    </div>
+  );
+}
+function ReportMatrixPreview({ snapshot }) {
+  const matrix = reportMatrix(snapshot);
+  return (
+    <div className="matrix-preview">
+      <p className="print-hint">
+        Una fila por estudiante · Cursos como columnas · Papel carta{" "}
+        {matrix.courses.length > 12 ? "horizontal" : "vertical"}. Al imprimir el
+        PDF, selecciona Carta y escala 100%.
+      </p>
+      <Table
+        headers={[
+          "N°",
+          "ESTUDIANTE",
+          ...matrix.courses.map((c) => (
+            <span className="vertical-course">{c.nombre}</span>
+          )),
+          "TURNO(S)",
+        ]}
+      >
+        {matrix.students.map((student, i) => (
+          <tr key={student.key}>
+            <td>{i + 1}</td>
+            <td>
+              <strong>{student.nombre}</strong>
+            </td>
+            {matrix.courses.map((course) => (
+              <td key={course.key} className="matrix-grade">
+                {gradeCell(student.cells[course.key])}
+              </td>
+            ))}
+            <td>{student.turnos.join(" / ")}</td>
+          </tr>
+        ))}
+      </Table>
     </div>
   );
 }

@@ -35,10 +35,20 @@ Para abrir la demostración desde la terminal puede usar `npm.cmd run dev:demo`.
 - Calificaciones finales por inscripción, filtros por curso/turno/mes, escala configurable y diferencia entre cero y sin nota.
 - Dos informes separados: Diseño Gráfico y Paquetes Sueltos. Selección explícita de notas, borradores y confirmación de entrega.
 - Historial filtrable por categoría, año, mes, turno y estado; instantáneas inmutables y rectificaciones con nuevas versiones.
-- PDF carta horizontal con agrupación por turno y cabeceras repetidas; Excel editable; logo opcional.
+- Planilla como la muestra: una fila por estudiante, cursos como columnas y notas en cada celda. PDF carta vertical hasta 12 cursos (horizontal si hay más), fuentes incorporadas y encabezados repetidos; Excel editable con impresión en carta.
 - Copias ZIP de SQLite e informes con checksums y restauración validada con confirmación y respaldo previo.
 - Catálogo inicial exacto de 20 cursos y configuración institucional, docente, firmas y horarios.
 - Interfaz adaptable a escritorio, tablet y móvil.
+
+## Imprimir la planilla sin repetir estudiantes
+
+Cree una nueva vista previa desde **Informes**. Cada estudiante aparece una sola vez, también si tiene cursos en varios turnos. Los cursos seleccionados son columnas y cada celda contiene su nota; «—» significa que no se incluye una calificación de ese curso en el informe. No se presuponen inscripciones a paquetes completos. Dos personas con el mismo nombre se mantienen separadas por ID.
+
+El botón **Abrir PDF para imprimir** abre el archivo en una pestaña. En el visor PDF pulse Imprimir, seleccione papel **Carta** y escala **100 % / Tamaño real**. No use la impresión de la página completa del navegador. La planilla de hasta 12 cursos es carta vertical, como el documento de muestra; con más cursos se utiliza carta horizontal para mantener legibilidad. El Excel también tiene tamaño carta, encabezados verticales y una página de ancho.
+
+Las reinscripciones del mismo alumno/curso conservan todas sus notas, numeradas en la celda y con detalle aparte. Ingreso, turno, observaciones y mes de cada nota se conservan; el detalle usa el número de fila sin volver a imprimir el nombre. Los informes anteriores a esta actualización conservan su formato original, incluso al reconstruir un archivo perdido. Para usar el nuevo formato prepare un informe nuevo; una rectificación crea una versión nueva, nunca reescribe la anterior.
+
+Ejemplo con datos ficticios: [PDF carta](ejemplos/Informe_Carta_Ejemplo.pdf) y [Excel](ejemplos/Informe_Carta_Ejemplo.xlsx).
 
 ## Regla principal: guardar no es presentar
 

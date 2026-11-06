@@ -1,3 +1,4 @@
+import { REPORT_FORMAT } from "../shared/report-layout.js";
 // SQLite integrado en Node 24: no requiere Python ni módulos nativos externos.
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
@@ -367,6 +368,7 @@ export class Store {
   }
   snapshot(category, month, shift, rows) {
     return {
+      formato: REPORT_FORMAT,
       categoria: category,
       periodo: month,
       turno: shift,
@@ -481,6 +483,7 @@ export class Store {
       )
         throw new Error("Seleccione calificaciones de este informe.");
       const snap = structuredClone(old.contenido);
+      snap.formato = REPORT_FORMAT;
       snap.filas.forEach((r) => {
         if (Object.hasOwn(changes, r.grade_id))
           r.valor = this.score(changes[r.grade_id]);
