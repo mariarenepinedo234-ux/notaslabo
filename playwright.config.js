@@ -6,9 +6,12 @@ export default defineConfig({
   testDir: "./e2e",
   workers: 1,
   retries: 0,
+  reporter: [["list"],["json",{outputFile:"test-results/results.json"}]],
   use: {
     baseURL: "http://127.0.0.1:3107",
     headless: true,
+    // El visor PDF requiere Chromium completo, no chromium-headless-shell.
+    channel: process.env.CEICOM_CHROMIUM ? undefined : "chromium",
     trace: "retain-on-failure",
     launchOptions: {
       executablePath: process.env.CEICOM_CHROMIUM || undefined,

@@ -18,6 +18,8 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - run: node .github/scripts/browser-diagnostics.mjs
+        if: failure()
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
