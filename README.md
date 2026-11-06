@@ -22,6 +22,20 @@ python3.12 -m venv .venv
 
 El modo demo usa `demo/datos` y `demo/Informes`, sin mezclar información con producción. No se importan nombres de estudiantes del documento de referencia.
 
+## Si al ejecutar no aparece nada
+
+Extraiga **todo** el ZIP con «Extraer todo» antes de abrir archivos. Para usar el código, abra `iniciar_windows.bat`; `build_windows.bat` fabrica el portable, no abre directamente la aplicación.
+
+Los BAT comprueban Python **3.12 x64** y dejan el resultado visible hasta pulsar una tecla. Si Python falta, muestran cómo instalarlo. El primer inicio requiere Internet para instalar dependencias; los siguientes reutilizan las bibliotecas instaladas sin descargarlas otra vez.
+
+Si se produce un fallo, copie el texto de la ventana o abra el registro:
+
+- Inicio desde código: `%TEMP%\CEICOM_iniciar.log`.
+- Compilación: `%TEMP%\CEICOM_compilar.log`.
+- Fallo de la aplicación o del EXE: `%TEMP%\CEICOM_aplicacion.log`.
+
+Pegue esa ruta en la barra de direcciones del Explorador de Windows. El EXE también muestra un aviso nativo cuando falla la importación de la interfaz. Los registros no garantizan capturar fallos nativos de Windows o del propio proceso antes de ejecutar Python.
+
 ## Obtener SistemaAcademico.exe en Windows 11
 
 1. Extraiga el código en una carpeta escribible en Windows 11 x64.

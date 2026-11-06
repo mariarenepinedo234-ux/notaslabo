@@ -22,3 +22,7 @@ Una carta fechada el 4 de noviembre puede informar notas de octubre: el mes de n
 ## Antes del primer uso real en Windows
 
 Compile con `build_windows.bat`, extraiga el portable en una carpeta escribible, abra `SistemaAcademico.exe --demo` y complete el ejemplo. Verifique impresión/PDF, Excel, respaldo y restauración en una carpeta de prueba. Después abra el programa sin `--demo` para usar la base de producción vacía. Mantenga el programa y toda su carpeta `_internal` juntos.
+
+## Si la ventana se cierra o no aparece
+
+Descargue la versión actual y extraiga todo el ZIP antes de abrirlo. Abra `iniciar_windows.bat` para usar el código; para compilar use `build_windows.bat`. Si falta Python 3.12 x64, el nuevo lanzador mostrará las instrucciones. La consola queda abierta con el resultado. Comparta el texto del error o el archivo `%TEMP%\CEICOM_iniciar.log` (inicio), `%TEMP%\CEICOM_compilar.log` (compilación) o `%TEMP%\CEICOM_aplicacion.log` (aplicación/EXE). No copie solo el EXE fuera de su carpeta `_internal`.

@@ -2,7 +2,7 @@ name: Validar y construir portable Windows
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, ceicom-primera-version]
   pull_request:
 jobs:
   portable:

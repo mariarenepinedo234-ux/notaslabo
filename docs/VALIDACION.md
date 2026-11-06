@@ -29,3 +29,7 @@ Comprobaciones realizadas:
 Se generaron dos informes de demostración (datos explícitamente ficticios), con notas de octubre de 2026 y entrega el 4 de noviembre. Se inspeccionaron visualmente capturas de la interfaz y una página PDF renderizada. Se incluyeron fuentes en PDF para no depender de las fuentes del equipo destino.
 
 **No ejecutado:** compilación PyInstaller para Windows, prueba del exe en Windows 11, impresión física y uso en USB real. `build_windows.bat` y el flujo de GitHub Actions preparan esas comprobaciones en Windows. El ZIP de fuentes no es un portable compilado. No se ha publicado el entorno ni ejecutado el flujo remoto de GitHub Actions.
+
+## Corrección del inicio en Windows
+
+La suite actual ejecutada en Linux terminó con **16 passed, 2 skipped**. Las dos pruebas omitidas necesitan cmd.exe de Windows y verifican que ambos BAT informan correctamente cuando falta Python, incluso en carpetas con espacios. Se probaron también fallos de importación de Qt y de acceso a datos, con mensaje de error y registro. Los BAT conservan los códigos de salida y mantienen la consola abierta fuera de CI. El flujo de GitHub Actions incluye ahora la rama ceicom-primera-version para validar y compilar en Windows tras subir cambios; su ejecución remota no se da por aprobada desde Linux.
