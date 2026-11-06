@@ -1915,3 +1915,28 @@ select {
   line-height: 1.8;
   margin: 0 0 15px;
 }
+
+.row-button + .row-button {
+  margin-left: 6px;
+}
+.row-button.deactivate {
+  color: #a06c53;
+  border-color: #ecd9ca;
+  background: #fffaf5;
+}
+.student-history-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.student-history-summary p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #927b9e;
+}
+.modal-body h3 {
+  font-size: 13px;
+  margin: 22px 0 14px;
+  color: #73527c;
+}

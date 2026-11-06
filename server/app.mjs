@@ -61,6 +61,9 @@ export function createApp({
     ...req.store.state(),
     demo: req.demo,
   }));
+  route("get", "/api/students/:id/history", (req) =>
+    req.store.studentHistory(req.params.id),
+  );
   route("post", "/api/students", (req) => req.store.student(req.body), true);
   route(
     "put",

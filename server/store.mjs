@@ -351,7 +351,7 @@ export class Store {
   }
   enrollments() {
     return this.all(
-      "SELECT e.*,s.nombres||' '||s.apellidos estudiante,c.nombre curso,c.categoria,g.id grade_id,g.valor,g.periodo,g.observacion,g.report_id FROM enrollments e JOIN students s ON s.id=e.student_id JOIN courses c ON c.id=e.course_id LEFT JOIN grades g ON g.enrollment_id=e.id ORDER BY e.id DESC",
+      "SELECT e.*,s.nombres||' '||s.apellidos estudiante,s.active student_active,c.nombre curso,c.categoria,g.id grade_id,g.valor,g.periodo,g.observacion,g.report_id FROM enrollments e JOIN students s ON s.id=e.student_id JOIN courses c ON c.id=e.course_id LEFT JOIN grades g ON g.enrollment_id=e.id ORDER BY e.id DESC",
     );
   }
   pending(category, month, shift = "") {
@@ -359,6 +359,7 @@ export class Store {
     if (!categories.includes(category)) throw new Error("Categoría inválida.");
     return this.enrollments().filter(
       (r) =>
+        r.student_active === 1 &&
         r.categoria === category &&
         r.grade_id !== null &&
         r.report_id === null &&
@@ -366,9 +367,28 @@ export class Store {
         (!shift || r.turno === shift),
     );
   }
+  reportCatalog(category) {
+    return this.all(
+      "SELECT id,nombre FROM courses WHERE categoria=? ORDER BY id",
+      category,
+    );
+  }
+  studentHistory(id) {
+    const student = this.get("SELECT * FROM students WHERE id=?", +id);
+    if (!student) throw new Error("Estudiante inexistente.");
+    return {
+      student,
+      enrollments: this.enrollments().filter((row) => row.student_id === +id),
+      reports: this.all(
+        "SELECT DISTINCT r.id,r.categoria,r.periodo,r.turno,r.estado,r.version,r.parent_id,r.confirmado_at,r.responsable FROM reports r JOIN report_items ri ON ri.report_id=r.id JOIN grades g ON g.id=ri.grade_id JOIN enrollments e ON e.id=g.enrollment_id WHERE e.student_id=? AND r.estado!='borrador' ORDER BY r.id DESC",
+        +id,
+      ),
+    };
+  }
   snapshot(category, month, shift, rows) {
     return {
       formato: REPORT_FORMAT,
+      catalogo: this.reportCatalog(category),
       categoria: category,
       periodo: month,
       turno: shift,
@@ -410,6 +430,22 @@ export class Store {
     if (!r) throw new Error("Informe inexistente.");
     return { ...r, contenido: JSON.parse(r.snapshot) };
   }
+  assertDraftCurrent(r) {
+    if (r.estado !== "borrador") return;
+    const ids = r.contenido.filas.map((row) => row.grade_id);
+    const current = this.snapshot(
+      r.categoria,
+      r.periodo,
+      r.turno,
+      this.pending(r.categoria, r.periodo, r.turno).filter((row) =>
+        ids.includes(row.grade_id),
+      ),
+    );
+    if (JSON.stringify(current) !== r.snapshot)
+      throw new Error(
+        "Los datos cambiaron desde la vista previa. Genere un nuevo borrador con los estudiantes activos y el catálogo actual.",
+      );
+  }
   confirm(id, v) {
     if (v.confirmed !== true)
       throw new Error(
@@ -421,20 +457,9 @@ export class Store {
       const r = this.report(id);
       if (r.estado !== "borrador")
         throw new Error("El informe ya está cerrado.");
+      this.assertDraftCurrent(r);
       const snap = r.contenido;
       const ids = snap.filas.map((row) => row.grade_id);
-      const current = this.snapshot(
-        r.categoria,
-        r.periodo,
-        r.turno,
-        this.pending(r.categoria, r.periodo, r.turno).filter((row) =>
-          ids.includes(row.grade_id),
-        ),
-      );
-      if (JSON.stringify(current) !== r.snapshot)
-        throw new Error(
-          "Los datos cambiaron desde la vista previa. Genere un nuevo borrador.",
-        );
       this.run(
         "UPDATE reports SET estado='presentado',confirmado_at=?,responsable=?,snapshot=? WHERE id=?",
         now(),
@@ -484,6 +509,7 @@ export class Store {
         throw new Error("Seleccione calificaciones de este informe.");
       const snap = structuredClone(old.contenido);
       snap.formato = REPORT_FORMAT;
+      snap.catalogo ||= this.reportCatalog(old.categoria);
       snap.filas.forEach((r) => {
         if (Object.hasOwn(changes, r.grade_id))
           r.valor = this.score(changes[r.grade_id]);

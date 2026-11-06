@@ -1,5 +1,5 @@
 import {
-  REPORT_FORMAT,
+  isMatrixReport,
   reportMatrix,
   gradeCell,
 } from "../shared/report-layout.js";
@@ -298,7 +298,7 @@ function App() {
     });
   }
   const notes = data.enrollments.filter((r) => r.grade_id),
-    pendingAll = notes.filter((r) => !r.report_id),
+    pendingAll = notes.filter((r) => !r.report_id && r.student_active === 1),
     presented = notes.filter((r) => r.report_id);
   const shifts = [
     ...new Set([
@@ -346,6 +346,31 @@ function App() {
       {format === "pdf" ? "PDF para imprimir" : "Excel editable"}
     </button>
   );
+  const toggleStudent = (student) =>
+    act(
+      async () => {
+        await api(
+          `/students/${student.id}`,
+          { active: student.active ? 0 : 1 },
+          "PUT",
+        );
+        await reload();
+        setPending(null);
+        setSelected([]);
+      },
+      student.active
+        ? "Estudiante inactivado. Ya no saldrá en informes nuevos; conserva sus notas e historial."
+        : "Estudiante reactivado. Sus notas sin entregar vuelven a estar disponibles.",
+    );
+  const openStudentHistory = (student) =>
+    act(async () => {
+      const history = await api(`/students/${student.id}/history`);
+      setModal({
+        kind: "student-history",
+        title: "Historial del estudiante",
+        history,
+      });
+    });
   function studentForm(row = {}) {
     setModal({
       kind: "student",
@@ -711,7 +736,7 @@ function App() {
                     Clock3,
                     "Notas por presentar",
                     pendingAll.length,
-                    "Requieren confirmar entrega",
+                    "De estudiantes activos",
                     "amber",
                   ],
                   [
@@ -803,7 +828,7 @@ function App() {
                   <div className="card-heading">
                     <div>
                       <h2>Estado de tus notas</h2>
-                      <p>De cada inscripción individual.</p>
+                      <p>Todas las notas, incluidos estudiantes inactivos.</p>
                     </div>
                     <GraduationCap size={20} />
                   </div>
@@ -828,7 +853,8 @@ function App() {
                     </span>
                     <span>
                       <i className="yellow" />
-                      Pendientes <b>{pendingAll.length}</b>
+                      Sin entrega{" "}
+                      <b>{notes.filter((r) => !r.report_id).length}</b>
                     </span>
                     <span>
                       <i />
@@ -972,6 +998,23 @@ function App() {
                           <PenLine size={14} />
                           Editar
                         </button>
+                        <button
+                          className={
+                            s.active ? "row-button deactivate" : "row-button"
+                          }
+                          disabled={busy}
+                          onClick={() => toggleStudent(s)}
+                        >
+                          {s.active ? "Inactivar" : "Reactivar"}
+                        </button>
+                        <button
+                          className="row-button"
+                          disabled={busy}
+                          onClick={() => openStudentHistory(s)}
+                        >
+                          <History size={14} />
+                          Historial
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -1053,6 +1096,9 @@ function App() {
                       <>
                         <td>
                           <strong>{r.estudiante}</strong>
+                          {r.student_active === 0 && (
+                            <small>Inactivo · fuera de informes nuevos</small>
+                          )}
                           <small>Inscripción #{r.id}</small>
                         </td>
                         <td>
@@ -1090,6 +1136,9 @@ function App() {
                       <>
                         <td>
                           <strong>{r.estudiante}</strong>
+                          {r.student_active === 0 && (
+                            <small>Inactivo · fuera de informes nuevos</small>
+                          )}
                           <small>
                             {r.curso} · {r.categoria}
                           </small>
@@ -1281,6 +1330,9 @@ function App() {
                           </td>
                           <td>
                             <strong>{r.estudiante}</strong>
+                            {r.student_active === 0 && (
+                              <small>Inactivo · fuera de informes nuevos</small>
+                            )}
                           </td>
                           <td>{r.curso}</td>
                           <td>{r.turno}</td>
@@ -1742,249 +1794,369 @@ function App() {
           Guardando…
         </div>
       )}
-      {modal && !["help", "restore", "shift"].includes(modal.kind) && (
-        <Modal
-          title={modal.title}
-          subtitle={modal.subtitle}
-          onClose={() => !busy && setModal(null)}
-        >
-          <form onSubmit={saveForm}>
-            <div className="modal-body form-grid">
-              {modal.kind === "student" && (
-                <>
-                  {[
-                    ["nombres", "Nombres *"],
-                    ["apellidos", "Apellidos *"],
-                    ["ci", "CI (opcional)"],
-                    ["telefono", "Teléfono (opcional)"],
-                  ].map(([k, label]) => (
-                    <Field key={k} label={label}>
-                      <input
-                        required={["nombres", "apellidos"].includes(k)}
-                        maxLength={120}
-                        value={modal.data[k]}
-                        onChange={(e) => updateModal(k, e.target.value)}
+      {modal &&
+        !["help", "restore", "shift", "student-history"].includes(
+          modal.kind,
+        ) && (
+          <Modal
+            title={modal.title}
+            subtitle={modal.subtitle}
+            onClose={() => !busy && setModal(null)}
+          >
+            <form onSubmit={saveForm}>
+              <div className="modal-body form-grid">
+                {modal.kind === "student" && (
+                  <>
+                    {[
+                      ["nombres", "Nombres *"],
+                      ["apellidos", "Apellidos *"],
+                      ["ci", "CI (opcional)"],
+                      ["telefono", "Teléfono (opcional)"],
+                    ].map(([k, label]) => (
+                      <Field key={k} label={label}>
+                        <input
+                          required={["nombres", "apellidos"].includes(k)}
+                          maxLength={120}
+                          value={modal.data[k]}
+                          onChange={(e) => updateModal(k, e.target.value)}
+                        />
+                      </Field>
+                    ))}
+                    <Field label="Observaciones">
+                      <textarea
+                        maxLength={500}
+                        value={modal.data.observaciones}
+                        onChange={(e) =>
+                          updateModal("observaciones", e.target.value)
+                        }
                       />
                     </Field>
-                  ))}
-                  <Field label="Observaciones">
-                    <textarea
-                      maxLength={500}
-                      value={modal.data.observaciones}
-                      onChange={(e) =>
-                        updateModal("observaciones", e.target.value)
-                      }
-                    />
-                  </Field>
-                  <label className="check-field">
-                    <input
-                      type="checkbox"
-                      checked={!!modal.data.active}
-                      onChange={(e) =>
-                        updateModal("active", e.target.checked ? 1 : 0)
-                      }
-                    />
-                    Estudiante activo
-                  </label>
-                </>
-              )}
-              {modal.kind === "course" && (
-                <>
-                  <Field label="Nombre del curso *">
-                    <input
-                      required
-                      maxLength={120}
-                      value={modal.data.nombre}
-                      onChange={(e) => updateModal("nombre", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Categoría">
-                    <select
-                      value={modal.data.categoria}
-                      onChange={(e) => updateModal("categoria", e.target.value)}
-                    >
-                      {categories.map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <label className="check-field">
-                    <input
-                      type="checkbox"
-                      checked={!!modal.data.activo}
-                      onChange={(e) =>
-                        updateModal("activo", e.target.checked ? 1 : 0)
-                      }
-                    />
-                    Curso activo
-                  </label>
-                </>
-              )}
-              {modal.kind === "enroll" && (
-                <>
-                  <Field label="Estudiante *">
-                    <select
-                      required
-                      value={modal.data.student_id}
-                      onChange={(e) =>
-                        updateModal("student_id", e.target.value)
-                      }
-                    >
-                      <option value="">Seleccionar estudiante</option>
-                      {data.students
-                        .filter((s) => s.active)
-                        .map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.nombres} {s.apellidos} · #{s.id}
-                          </option>
+                    <label className="check-field">
+                      <input
+                        type="checkbox"
+                        checked={!!modal.data.active}
+                        onChange={(e) =>
+                          updateModal("active", e.target.checked ? 1 : 0)
+                        }
+                      />
+                      Estudiante activo
+                    </label>
+                  </>
+                )}
+                {modal.kind === "course" && (
+                  <>
+                    <Field label="Nombre del curso *">
+                      <input
+                        required
+                        maxLength={120}
+                        value={modal.data.nombre}
+                        onChange={(e) => updateModal("nombre", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Categoría">
+                      <select
+                        value={modal.data.categoria}
+                        onChange={(e) =>
+                          updateModal("categoria", e.target.value)
+                        }
+                      >
+                        {categories.map((c) => (
+                          <option key={c}>{c}</option>
                         ))}
-                    </select>
-                  </Field>
-                  <Field label="Curso individual *">
-                    <select
-                      required
-                      value={modal.data.course_id}
-                      onChange={(e) => updateModal("course_id", e.target.value)}
-                    >
-                      <option value="">Seleccionar curso</option>
-                      {data.courses
-                        .filter((c) => c.activo)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nombre} · {c.categoria}
-                          </option>
+                      </select>
+                    </Field>
+                    <label className="check-field">
+                      <input
+                        type="checkbox"
+                        checked={!!modal.data.activo}
+                        onChange={(e) =>
+                          updateModal("activo", e.target.checked ? 1 : 0)
+                        }
+                      />
+                      Curso activo
+                    </label>
+                  </>
+                )}
+                {modal.kind === "enroll" && (
+                  <>
+                    <Field label="Estudiante *">
+                      <select
+                        required
+                        value={modal.data.student_id}
+                        onChange={(e) =>
+                          updateModal("student_id", e.target.value)
+                        }
+                      >
+                        <option value="">Seleccionar estudiante</option>
+                        {data.students
+                          .filter((s) => s.active)
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nombres} {s.apellidos} · #{s.id}
+                            </option>
+                          ))}
+                      </select>
+                    </Field>
+                    <Field label="Curso individual *">
+                      <select
+                        required
+                        value={modal.data.course_id}
+                        onChange={(e) =>
+                          updateModal("course_id", e.target.value)
+                        }
+                      >
+                        <option value="">Seleccionar curso</option>
+                        {data.courses
+                          .filter((c) => c.activo)
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nombre} · {c.categoria}
+                            </option>
+                          ))}
+                      </select>
+                    </Field>
+                    <Field label="Turno / grupo *">
+                      <input
+                        list="shifts"
+                        required
+                        maxLength={120}
+                        value={modal.data.turno}
+                        onChange={(e) =>
+                          setModal({
+                            ...modal,
+                            data: {
+                              ...modal.data,
+                              turno: e.target.value,
+                              horario:
+                                data.settings.horarios?.[e.target.value] ||
+                                modal.data.horario,
+                            },
+                          })
+                        }
+                      />
+                      <datalist id="shifts">
+                        {shifts.map((s) => (
+                          <option key={s} value={s} />
                         ))}
-                    </select>
-                  </Field>
-                  <Field label="Turno / grupo *">
-                    <input
-                      list="shifts"
-                      required
-                      maxLength={120}
-                      value={modal.data.turno}
-                      onChange={(e) =>
-                        setModal({
-                          ...modal,
-                          data: {
-                            ...modal.data,
-                            turno: e.target.value,
-                            horario:
-                              data.settings.horarios?.[e.target.value] ||
-                              modal.data.horario,
-                          },
-                        })
-                      }
-                    />
-                    <datalist id="shifts">
-                      {shifts.map((s) => (
-                        <option key={s} value={s} />
-                      ))}
-                    </datalist>
-                  </Field>
-                  <Field label="Fecha de ingreso">
-                    <input
-                      type="date"
-                      required
-                      value={modal.data.fecha_ingreso}
-                      onChange={(e) =>
-                        updateModal("fecha_ingreso", e.target.value)
-                      }
-                    />
-                  </Field>
-                  <Field label="Días y horario">
-                    <input
-                      value={modal.data.horario}
-                      maxLength={250}
-                      onChange={(e) => updateModal("horario", e.target.value)}
-                    />
-                  </Field>
-                  <label className="check-field">
-                    <input
-                      type="checkbox"
-                      checked={modal.data.deliberate}
-                      onChange={(e) =>
-                        updateModal("deliberate", e.target.checked)
-                      }
-                    />
-                    Esta es una reinscripción deliberada
-                  </label>
-                </>
-              )}
-              {modal.kind === "state" && (
-                <>
-                  <Field label="Estado">
-                    <select
-                      value={modal.data.estado}
-                      onChange={(e) => updateModal("estado", e.target.value)}
+                      </datalist>
+                    </Field>
+                    <Field label="Fecha de ingreso">
+                      <input
+                        type="date"
+                        required
+                        value={modal.data.fecha_ingreso}
+                        onChange={(e) =>
+                          updateModal("fecha_ingreso", e.target.value)
+                        }
+                      />
+                    </Field>
+                    <Field label="Días y horario">
+                      <input
+                        value={modal.data.horario}
+                        maxLength={250}
+                        onChange={(e) => updateModal("horario", e.target.value)}
+                      />
+                    </Field>
+                    <label className="check-field">
+                      <input
+                        type="checkbox"
+                        checked={modal.data.deliberate}
+                        onChange={(e) =>
+                          updateModal("deliberate", e.target.checked)
+                        }
+                      />
+                      Esta es una reinscripción deliberada
+                    </label>
+                  </>
+                )}
+                {modal.kind === "state" && (
+                  <>
+                    <Field label="Estado">
+                      <select
+                        value={modal.data.estado}
+                        onChange={(e) => updateModal("estado", e.target.value)}
+                      >
+                        {["activo", "concluido", "retirado"].map((s) => (
+                          <option key={s}>{s}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Fecha final (opcional)">
+                      <input
+                        type="date"
+                        value={modal.data.fecha_fin}
+                        onChange={(e) =>
+                          updateModal("fecha_fin", e.target.value)
+                        }
+                      />
+                    </Field>
+                    <p className="form-hint">
+                      Cambiar el estado no elimina notas ni confirma su entrega.
+                    </p>
+                  </>
+                )}
+                {modal.kind === "grade" && (
+                  <>
+                    <Field
+                      label={`Nota final (${data.settings.minimo}–${data.settings.maximo}) *`}
+                      hint="Cero es una nota válida. Guardar no confirma entrega."
                     >
-                      {["activo", "concluido", "retirado"].map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field label="Fecha final (opcional)">
-                    <input
-                      type="date"
-                      value={modal.data.fecha_fin}
-                      onChange={(e) => updateModal("fecha_fin", e.target.value)}
-                    />
-                  </Field>
-                  <p className="form-hint">
-                    Cambiar el estado no elimina notas ni confirma su entrega.
-                  </p>
-                </>
-              )}
-              {modal.kind === "grade" && (
-                <>
-                  <Field
-                    label={`Nota final (${data.settings.minimo}–${data.settings.maximo}) *`}
-                    hint="Cero es una nota válida. Guardar no confirma entrega."
-                  >
-                    <input
-                      type="number"
-                      required
-                      min={data.settings.minimo}
-                      max={data.settings.maximo}
-                      step="0.01"
-                      value={modal.data.valor}
-                      onChange={(e) => updateModal("valor", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Mes académico de la nota *">
-                    <input
-                      type="month"
-                      required
-                      value={modal.data.periodo}
-                      onChange={(e) => updateModal("periodo", e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Observaciones">
-                    <textarea
-                      maxLength={500}
-                      value={modal.data.observacion}
-                      onChange={(e) =>
-                        updateModal("observacion", e.target.value)
+                      <input
+                        type="number"
+                        required
+                        min={data.settings.minimo}
+                        max={data.settings.maximo}
+                        step="0.01"
+                        value={modal.data.valor}
+                        onChange={(e) => updateModal("valor", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Mes académico de la nota *">
+                      <input
+                        type="month"
+                        required
+                        value={modal.data.periodo}
+                        onChange={(e) => updateModal("periodo", e.target.value)}
+                      />
+                    </Field>
+                    <Field label="Observaciones">
+                      <textarea
+                        maxLength={500}
+                        value={modal.data.observacion}
+                        onChange={(e) =>
+                          updateModal("observacion", e.target.value)
+                        }
+                      />
+                    </Field>
+                  </>
+                )}
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => setModal(null)}
+                  disabled={busy}
+                >
+                  Cancelar
+                </button>
+                <button className="primary" disabled={busy}>
+                  <Save size={16} />
+                  Guardar{modal.kind === "grade" ? " nota pendiente" : ""}
+                </button>
+              </div>
+            </form>
+          </Modal>
+        )}
+      {modal?.kind === "student-history" && (
+        <Modal
+          title={modal.title}
+          subtitle={`${modal.history.student.nombres} ${modal.history.student.apellidos}`}
+          onClose={() => setModal(null)}
+          wide
+        >
+          <div className="modal-body">
+            <div className="student-history-summary">
+              <Status
+                value={modal.history.student.active ? "active" : "inactive"}
+              />
+              <p>
+                {modal.history.student.active
+                  ? "Sus notas pendientes pueden incluirse en informes nuevos."
+                  : "No aparece en informes nuevos. Sus datos, inscripciones y notas permanecen guardados."}
+              </p>
+            </div>
+            <h3>Inscripciones y calificaciones</h3>
+            <Table
+              headers={[
+                "CURSO",
+                "CATEGORÍA",
+                "TURNO",
+                "ESTADO",
+                "NOTA",
+                "MES ACADÉMICO",
+                "ENTREGA",
+              ]}
+              empty={
+                !modal.history.enrollments.length && (
+                  <Empty
+                    title="Sin inscripciones"
+                    text="Todavía no se registraron cursos para este estudiante."
+                  />
+                )
+              }
+            >
+              {modal.history.enrollments.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.curso}</td>
+                  <td>{row.categoria}</td>
+                  <td>{row.turno}</td>
+                  <td>
+                    <Status value={row.estado} />
+                  </td>
+                  <td>{row.valor ?? "—"}</td>
+                  <td>{row.periodo || "—"}</td>
+                  <td>
+                    <Status
+                      value={
+                        row.report_id
+                          ? "presentado"
+                          : row.grade_id
+                            ? "pending"
+                            : "missing"
                       }
                     />
-                  </Field>
-                </>
-              )}
-            </div>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => setModal(null)}
-                disabled={busy}
-              >
-                Cancelar
-              </button>
-              <button className="primary" disabled={busy}>
-                <Save size={16} />
-                Guardar{modal.kind === "grade" ? " nota pendiente" : ""}
-              </button>
-            </div>
-          </form>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+            <h3>Informes presentados y rectificaciones</h3>
+            <p className="form-hint">
+              Cada versión conserva las notas y nombres originales; las
+              correcciones se consultan en la versión rectificada.
+            </p>
+            <Table
+              headers={[
+                "INFORME",
+                "CATEGORÍA",
+                "PERÍODO",
+                "VERSIÓN",
+                "ESTADO",
+                "",
+              ]}
+              empty={
+                !modal.history.reports.length && (
+                  <Empty
+                    title="Sin entregas confirmadas"
+                    text="Las notas guardadas siguen pendientes hasta confirmar su entrega."
+                  />
+                )
+              }
+            >
+              {modal.history.reports.map((r) => (
+                <tr key={r.id}>
+                  <td>#{String(r.id).padStart(4, "0")}</td>
+                  <td>{r.categoria}</td>
+                  <td>{r.periodo}</td>
+                  <td>{r.version}</td>
+                  <td>
+                    <Status value={r.estado} />
+                  </td>
+                  <td>
+                    <button
+                      className="row-button"
+                      onClick={() => {
+                        setModal(null);
+                        openReport(r);
+                      }}
+                    >
+                      Abrir informe
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
         </Modal>
       )}
       {modal?.kind === "help" && (
@@ -2160,7 +2332,7 @@ function App() {
                 <p>Rectificación: {report.motivo}</p>
               </div>
             )}
-            {!rectify && report.contenido.formato === REPORT_FORMAT ? (
+            {!rectify && isMatrixReport(report.contenido) ? (
               <ReportMatrixPreview snapshot={report.contenido} />
             ) : (
               <Table
@@ -2342,7 +2514,7 @@ function ReportMatrixPreview({ snapshot }) {
   return (
     <div className="matrix-preview">
       <p className="print-hint">
-        Una fila por estudiante · Cursos como columnas · Papel carta{" "}
+        Una fila por estudiante · Catálogo completo por categoría · Papel carta{" "}
         {matrix.courses.length > 12 ? "horizontal" : "vertical"}. Al imprimir el
         PDF, selecciona Carta y escala 100%.
       </p>

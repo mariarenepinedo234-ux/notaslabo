@@ -1,11 +1,11 @@
 import { fileURLToPath } from "node:url";
-// Planilla carta: una fila por estudiante y una columna por curso seleccionado.
+// Planilla carta: una fila por estudiante y una columna por cada curso de la categoría.
 import PDFDocument from "pdfkit";
 import ExcelJS from "exceljs";
 import { existsSync, writeFileSync } from "node:fs";
 import { reportPath, exportReport as legacyExport } from "./exports-legacy.mjs";
 import {
-  REPORT_FORMAT,
+  isMatrixReport,
   reportMatrix,
   gradeCell,
 } from "../shared/report-layout.js";
@@ -16,9 +16,9 @@ export async function exportReport(store, id, format) {
   if (!["pdf", "xlsx"].includes(format)) throw new Error("Formato inválido.");
   const report = store.report(id),
     snapshot = report.contenido;
+  store.assertDraftCurrent(report);
   // Reconstruir documentos antiguos con su diseño original, incluso si falta el archivo.
-  if (snapshot.formato !== REPORT_FORMAT)
-    return legacyExport(store, id, format);
+  if (!isMatrixReport(snapshot)) return legacyExport(store, id, format);
   const path = reportPath(store, report, format);
   if (existsSync(path)) return path;
   const matrix = reportMatrix(snapshot),
@@ -101,7 +101,10 @@ export async function exportReport(store, id, format) {
     ws.mergeCells(8, 1, 9, 1);
     ws.getCell(8, 2).value = "Estudiante";
     ws.mergeCells(8, 2, 9, 2);
-    ws.getCell(8, 3).value = "Paquetes / cursos cursados y calificaciones";
+    ws.getCell(8, 3).value =
+      snapshot.formato === "matriz-estudiantes-v1"
+        ? "Paquetes / cursos cursados y calificaciones"
+        : "Paquetes / cursos de la categoría · Calificaciones";
     if (matrix.courses.length > 1) ws.mergeCells(8, 3, 8, count - 1);
     ws.getCell(8, count).value = "Turno / ingreso";
     ws.mergeCells(8, count, 9, count);

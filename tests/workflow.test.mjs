@@ -246,8 +246,8 @@ test("PDF y Excel contienen datos y se regeneran desde el archivo histórico", a
   const xlsx = await exportReport(s, r.id, "xlsx");
   const book = new ExcelJS.Workbook();
   await book.xlsx.readFile(xlsx);
-  assert.equal(book.worksheets[0].getCell("C9").value, "Power BI");
-  assert.equal(book.worksheets[0].getCell("C10").value, 92);
+  assert.equal(book.worksheets[0].getCell("I9").value, "Power BI");
+  assert.equal(book.worksheets[0].getCell("I10").value, 92);
   assert.match(book.worksheets[0].getCell("A4").value, /2026-11-04/);
   unlinkSync(pdf);
   assert.ok(existsSync(await exportReport(s, r.id, "pdf")));

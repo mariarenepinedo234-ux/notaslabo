@@ -30,7 +30,7 @@ Para abrir la demostración desde la terminal puede usar `npm.cmd run dev:demo`.
 ## Qué incluye
 
 - Panel con estudiantes, inscripciones activas, notas pendientes e informes cerrados del mes.
-- Estudiantes: alta, búsqueda, edición y desactivación; CI y teléfono opcionales.
+- Estudiantes: alta, búsqueda, edición, botones Inactivar/Reactivar e historial individual; CI y teléfono opcionales.
 - Inscripciones por curso individual y turno/grupo; horario editable, estados y reinscripción deliberada.
 - Calificaciones finales por inscripción, filtros por curso/turno/mes, escala configurable y diferencia entre cero y sin nota.
 - Dos informes separados: Diseño Gráfico y Paquetes Sueltos. Selección explícita de notas, borradores y confirmación de entrega.
@@ -42,17 +42,25 @@ Para abrir la demostración desde la terminal puede usar `npm.cmd run dev:demo`.
 
 ## Imprimir la planilla sin repetir estudiantes
 
-Cree una nueva vista previa desde **Informes**. Cada estudiante aparece una sola vez, también si tiene cursos en varios turnos. Los cursos seleccionados son columnas y cada celda contiene su nota; «—» significa que no se incluye una calificación de ese curso en el informe. No se presuponen inscripciones a paquetes completos. Dos personas con el mismo nombre se mantienen separadas por ID.
+Cree una nueva vista previa desde **Informes**. Cada estudiante aparece una sola vez, también si tiene cursos en varios turnos. Siempre se muestran todos los cursos registrados en la categoría: 12 de Diseño Gráfico y 8 de Paquetes Sueltos en el catálogo inicial. Cada celda contiene únicamente la nota seleccionada; «—» significa que no se incluye una calificación de ese curso en el informe. Las columnas sin una nota incluida muestran «—»; esto no inscribe al estudiante a un paquete completo. Dos personas con el mismo nombre se mantienen separadas por ID.
 
 El botón **Abrir PDF para imprimir** abre el archivo en una pestaña. En el visor PDF pulse Imprimir, seleccione papel **Carta** y escala **100 % / Tamaño real**. No use la impresión de la página completa del navegador. La planilla de hasta 12 cursos es carta vertical, como el documento de muestra; con más cursos se utiliza carta horizontal para mantener legibilidad. El Excel también tiene tamaño carta, encabezados verticales y una página de ancho.
 
 Las reinscripciones del mismo alumno/curso conservan todas sus notas, numeradas en la celda y con detalle aparte. Ingreso, turno, observaciones y mes de cada nota se conservan; el detalle usa el número de fila sin volver a imprimir el nombre. Los informes anteriores a esta actualización conservan su formato original, incluso al reconstruir un archivo perdido. Para usar el nuevo formato prepare un informe nuevo; una rectificación crea una versión nueva, nunca reescribe la anterior.
 
-Ejemplo con datos ficticios: [PDF carta](ejemplos/Informe_Carta_Ejemplo.pdf) y [Excel](ejemplos/Informe_Carta_Ejemplo.xlsx).
+Ejemplo con datos ficticios: [Diseño Gráfico — PDF](ejemplos/Informe_Diseno_Grafico_Carta.pdf), [Paquetes Sueltos — PDF](ejemplos/Informe_Paquetes_Sueltos_Carta.pdf) y sus Excel en la carpeta ejemplos/.
+
+## Inactivar estudiantes sin perder antecedentes
+
+En **Estudiantes**, pulse **Inactivar** junto al nombre. El alumno permanece registrado y puede abrir su **Historial** para consultar todas sus inscripciones, notas, entregas y rectificaciones. Queda excluido de la lista de pendientes y de los informes nuevos de ambas categorías. Sus notas **no se marcan como presentadas** ni se borran. Los informes cerrados anteriores conservan el nombre y las notas originales.
+
+El botón **Reactivar** vuelve a habilitar sus notas sin entrega confirmada; las que ya se presentaron siguen fuera de pendientes. Si inactiva después de crear una vista previa, ese borrador queda obsoleto y debe generar uno nuevo antes de imprimir o confirmar. Así no se imprime por accidente una lista desactualizada.
+
+Cada informe nuevo archiva también el catálogo completo de su categoría, para que futuros cambios de cursos no alteren sus columnas históricas. La nueva distribución se aplica a informes nuevos; los anteriores conservan su formato original.
 
 ## Regla principal: guardar no es presentar
 
-Registrar una nota, consultar pendientes, generar una vista previa o descargar un PDF/Excel **no marca la nota como presentada**. Solo la confirmación expresa «YA ENTREGUÉ», con responsable y fecha real, cierra el informe y marca sus notas seleccionadas. Las demás siguen pendientes, también en períodos futuros y aunque se concluya una inscripción.
+Registrar una nota, consultar pendientes, generar una vista previa o descargar un PDF/Excel **no marca la nota como presentada**. Solo la confirmación expresa «YA ENTREGUÉ», con responsable y fecha real, cierra el informe y marca sus notas seleccionadas. Las demás siguen pendientes, también en períodos futuros y aunque se concluya una inscripción; las de alumnos inactivos se conservan fuera de la lista hasta reactivarlos.
 
 Si Illustrator se presenta y Photoshop no, el estudiante seguirá pendiente únicamente por Photoshop. El mes académico de la nota, el período del informe y la fecha real de entrega se conservan de forma independiente.
 

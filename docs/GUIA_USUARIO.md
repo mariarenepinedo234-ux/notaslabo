@@ -30,3 +30,9 @@ Una nota de octubre puede entregarse el 4 de noviembre: el mes de la nota y la f
 En una nueva vista previa, cada estudiante aparece una sola vez y sus cursos son columnas con las notas respectivas. Use **Abrir PDF para imprimir** y, en el visor, seleccione papel **Carta** y escala **100 % / Tamaño real**. Hasta 12 cursos se imprimen en carta vertical, con encabezados de cursos verticales como la muestra; con más cursos se usa carta horizontal. La vista previa, PDF y Excel comparten la misma agrupación.
 
 Los documentos históricos ya cerrados mantienen su diseño anterior. No se presenta ninguna nota por imprimir, descargar o cambiar el diseño. Al actualizar los archivos de la aplicación conserve las carpetas de datos e informes.
+
+## Catálogo completo e inactivación
+
+Se generan dos informes independientes: Diseño Gráfico con sus 12 columnas iniciales y Paquetes Sueltos con sus 8. Se muestran todas las columnas aunque se elija una sola nota; las celdas no incluidas muestran «—». El catálogo de cada categoría queda archivado con el informe.
+
+En Estudiantes, pulse **Inactivar** para excluir al alumno de informes nuevos sin borrarlo ni presentar sus notas. **Historial** abre sus cursos, notas, entregas y versiones rectificadas. **Reactivar** vuelve a habilitar únicamente las notas todavía sin presentar. Los informes cerrados anteriores permanecen intactos. Si cambia el estado después de la vista previa, debe crear un borrador nuevo para imprimir o cerrar.

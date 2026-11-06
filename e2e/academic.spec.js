@@ -177,3 +177,120 @@ test("vista previa agrupa al estudiante y abre el PDF carta sin presentar notas"
     dialog.getByRole("button", { name: "Confirmar entrega y cerrar informe" }),
   ).toBeDisabled();
 });
+
+test("catálogos completos e inactivar con historial conservado y reactivación", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Probar con datos ficticios" })
+    .click();
+  await expect(
+    page.getByText(
+      "Modo demostración · Todos los datos de este espacio son ficticios.",
+    ),
+  ).toBeVisible();
+  const headers = { "X-CEICOM-Demo": "1", "X-CEICOM-Request": "1" };
+  const state = await (
+    await page.request.get("/api/state", { headers })
+  ).json();
+  const note = state.enrollments.find((r) => r.curso === "Illustrator");
+  const draft = await (
+    await page.request.post("/api/reports", {
+      headers,
+      data: {
+        categoria: "Diseño Gráfico",
+        periodo: "2026-11",
+        grade_ids: [note.grade_id],
+      },
+    })
+  ).json();
+  expect(draft.contenido.catalogo).toHaveLength(12);
+  const closure = await page.request.post(`/api/reports/${draft.id}/confirm`, {
+    headers,
+    data: {
+      confirmed: true,
+      responsable: "Docente ficticio",
+      fecha_presentacion: "2026-11-04",
+    },
+  });
+  expect(closure.ok()).toBe(true);
+  await page.reload();
+  await page.getByRole("button", { name: "Estudiantes", exact: true }).click();
+  let row = page
+    .getByRole("row")
+    .filter({ hasText: "Juan (FICTICIO) Ejemplo" });
+  await row.getByRole("button", { name: "Inactivar", exact: true }).click();
+  await expect(row.getByText("Inactivo", { exact: true })).toBeVisible();
+  await row.getByRole("button", { name: "Historial", exact: true }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByText("Historial del estudiante", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog
+      .getByRole("row")
+      .filter({ hasText: "Photoshop" })
+      .getByRole("cell", { name: "0", exact: true }),
+  ).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "Abrir informe", exact: true })
+    .click();
+  dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("row").filter({ hasText: "Juan (FICTICIO) Ejemplo" }),
+  ).toHaveCount(1);
+  await expect(
+    dialog.getByRole("columnheader", { name: "Sony Vegas", exact: true }),
+  ).toBeVisible();
+  await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.getByRole("button", { name: /^Informes/ }).click();
+  await page.getByLabel("Mes académico del informe").fill("2026-12");
+  await page.getByRole("button", { name: "Consultar pendientes" }).click();
+  await expect(
+    page.getByText("No hay notas pendientes", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Categoría", { exact: true })
+    .selectOption("Paquetes Sueltos");
+  await page.getByRole("button", { name: "Consultar pendientes" }).click();
+  await page
+    .getByRole("checkbox", { name: "Seleccionar todas las notas" })
+    .check();
+  await page.getByRole("button", { name: "Vista previa (1)" }).click();
+  dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("columnheader")).toHaveCount(11);
+  for (const name of [
+    "Python",
+    "Java",
+    "SolidWorks",
+    "Revit",
+    "Inteligencia Artificial",
+    "Marketing Digital",
+    "Power BI",
+    "Filmora",
+  ])
+    await expect(
+      dialog.getByRole("columnheader", { name, exact: true }),
+    ).toBeVisible();
+  await expect(
+    dialog.getByRole("columnheader", { name: "Illustrator", exact: true }),
+  ).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cerrar", exact: true }).click();
+  await page.getByRole("button", { name: "Estudiantes", exact: true }).click();
+  row = page.getByRole("row").filter({ hasText: "Juan (FICTICIO) Ejemplo" });
+  await row.getByRole("button", { name: "Reactivar", exact: true }).click();
+  await expect(row.getByText("Activo", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^Informes/ }).click();
+  await page
+    .getByLabel("Categoría", { exact: true })
+    .selectOption("Diseño Gráfico");
+  await page.getByLabel("Mes académico del informe").fill("2026-12");
+  await page.getByRole("button", { name: "Consultar pendientes" }).click();
+  await expect(
+    page.getByRole("heading", { name: "1 notas pendientes" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("row").filter({ hasText: "Photoshop" }),
+  ).toBeVisible();
+});

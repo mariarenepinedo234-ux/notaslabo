@@ -19,3 +19,7 @@ La aplicación se ejecuta localmente. No se ha desplegado un sitio público ni s
 ## Planilla por estudiante en papel carta
 
 Se añadieron pruebas de agrupación por ID (incluidos homónimos), reinscripciones, cero válido, doce columnas de cursos, lectura real del PDF con fuentes incorporadas, tamaño de página carta, nombres impresos una sola vez, configuración de impresión Excel y conservación del formato histórico anterior. La suite de Node pasa con 22 pruebas y el navegador con 3, incluido el botón que abre el PDF sin confirmar entrega. Se inspeccionó visualmente una planilla carta vertical de doce cursos y se incluyó una muestra explícitamente ficticia en ejemplos/.
+
+## Catálogo completo y estudiantes inactivos
+
+Se amplió la cobertura para comprobar doce columnas de Diseño Gráfico y ocho de Paquetes Sueltos aun con una sola nota, sin mezclar categorías; se archivó el catálogo con cada informe nuevo. Se verificaron inactivación/reactivación sin borrado ni entrega automática, historial individual con versiones, rechazo de borradores obsoletos y conservación de matrices históricas v1. La prueba del navegador recorre los botones Inactivar, Historial y Reactivar y comprueba las ocho columnas de Paquetes Sueltos. Las muestras de ambas categorías están en ejemplos/.
