@@ -1,80 +1,2309 @@
-import React, {useState,useEffect,useRef} from 'react';
-import {createRoot} from 'react-dom/client';
-import {LayoutDashboard,Users,BookOpen,GraduationCap,FileText,History,Settings,Plus,ArrowUpRight,Check,ChevronRight,Search,X,Download,ShieldCheck,FolderOpen,CheckCircle2,Clock3,AlertCircle,FlaskConical,ArrowLeft,Save,PenLine,HelpCircle,CalendarDays,Monitor,LoaderCircle} from 'lucide-react';
-import './styles.css';
-const categories=['Diseño Gráfico','Paquetes Sueltos'];
-const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
-const month=today().slice(0,7);
-const monthName=v=>new Date(`${v}-15T12:00:00`).toLocaleDateString('es-BO',{month:'long',year:'numeric'});
-const initial={students:[],courses:[],enrollments:[],reports:[],settings:{horarios:{}},categories};
-function Status({value}){const labels={active:'Activo',inactive:'Inactivo',activo:'Activo',concluido:'Concluido',retirado:'Retirado',borrador:'Borrador',presentado:'Presentado',rectificado:'Rectificado',pending:'Pendiente',missing:'Sin nota'};return <span className={`status ${value}`}>{['presentado','activo','active'].includes(value)?<Check size={12}/>:value==='pending'?<Clock3 size={12}/>:null}{labels[value]||value}</span>;}
-function Empty({title='Todavía no hay registros',text='Agrega tu primer registro para comenzar.',action}){return <div className="empty"><div className="empty-icon"><FolderOpen size={29}/></div><h3>{title}</h3><p>{text}</p>{action}</div>;}
-function Table({headers,children,empty}){return <div className="table-wrap"><table><thead><tr>{headers.map((h,i)=><th key={i}>{h}</th>)}</tr></thead><tbody>{children}</tbody></table>{empty}</div>;}
-function Field({label,children,hint}){const id=React.useId();return <div className="field"><label htmlFor={id}>{label}</label>{React.Children.map(children,child=>React.isValidElement(child)&&['input','select','textarea'].includes(child.type)?React.cloneElement(child,{id,'aria-describedby':hint?id+'-hint':undefined}):child)}{hint&&<small id={id+'-hint'}>{hint}</small>}</div>;}
-function Modal({title,subtitle,children,onClose,wide=false}){const ref=useRef();useEffect(()=>{ref.current.showModal();return()=>ref.current?.close();},[]);return <dialog ref={ref} className={`modal ${wide?'wide':''}`} onCancel={onClose}><header><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="icon-btn" onClick={onClose} aria-label="Cerrar"><X size={20}/></button></header>{children}</dialog>;}
-function App(){
- const [data,setData]=useState(initial),[page,setPage]=useState('Panel principal'),[demo,setDemo]=useState(localStorage.getItem('ceicom-demo')==='true'),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState(null),[modal,setModal]=useState(null),[search,setSearch]=useState(''),[filters,setFilters]=useState({course:'',shift:'',period:'',category:'',state:'',year:'',histMonth:''});
- const [reportFilter,setReportFilter]=useState({categoria:categories[0],periodo:month,turno:''}),[pending,setPending]=useState(null),[selected,setSelected]=useState([]);
- const [report,setReport]=useState(null),[responsible,setResponsible]=useState(''),[delivery,setDelivery]=useState(today()),[confirmed,setConfirmed]=useState(false),[rectify,setRectify]=useState(false),[corrections,setCorrections]=useState({}),[reason,setReason]=useState('');
- const [settingsDraft,setSettingsDraft]=useState(null);
- const api=async(path,body,method='POST')=>{const response=await fetch(`/api${path}`,{method:body===undefined?'GET':method,headers:{'Content-Type':'application/json','X-CEICOM-Request':'1','X-CEICOM-Demo':demo?'1':'0'},body:body===undefined?undefined:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo completar la operación.');return result;};
- async function reload(){const result=await api('/state');setData(result);return result;}
- useEffect(()=>{let alive=true;setLoading(true);setPending(null);setSelected([]);setReport(null);setSettingsDraft(null);api('/state').then(r=>{if(alive)setData(r);}).catch(e=>{if(alive)setNotice({error:true,text:e.message});}).finally(()=>{if(alive)setLoading(false);});return()=>{alive=false;};},[demo]);
- useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(null),notice.error?12000:6000);return()=>clearTimeout(t);},[notice]);
- function navigate(value){setPage(value);setSearch('');setFilters({course:'',shift:'',period:'',category:'',state:'',year:'',histMonth:''});}
- const act=async(fn,message)=>{if(busy)return;setBusy(true);try{await fn();if(message)setNotice({text:message});}catch(e){setNotice({error:true,text:e.message});}finally{setBusy(false);}};
- const switchDemo=()=>{if(busy)return;localStorage.setItem('ceicom-demo',String(!demo));setDemo(!demo);};
- const download=async(path,name)=>{const response=await fetch(`/api${path}`,{headers:{'X-CEICOM-Demo':demo?'1':'0'}});if(!response.ok){const r=await response.json();throw new Error(r.error);}const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name||response.headers.get('content-disposition')?.match(/filename="([^"]+)"/)?.[1]||'CEICOM.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);};
- function openReport(r){act(async()=>{setReport(await api(`/reports/${r.id}`));setResponsible(data.settings.docente||'');setDelivery(today());setConfirmed(false);setRectify(false);setCorrections({});setReason('');});}
- const notes=data.enrollments.filter(r=>r.grade_id),pendingAll=notes.filter(r=>!r.report_id),presented=notes.filter(r=>r.report_id);
- const shifts=[...new Set([...Object.keys(data.settings.horarios||{}),...data.enrollments.map(r=>r.turno)])];
- const totalReports=data.reports.filter(r=>r.estado!=='borrador'&&r.confirmado_at?.slice(0,7)===month).length;
- const nav=[['Panel principal',LayoutDashboard],['Estudiantes',Users],['Inscripciones',BookOpen],['Calificaciones',GraduationCap],['Informes',FileText],['Historial',History],['Configuración',Settings]];
- const f=(key,value)=>setFilters(prev=>({...prev,[key]:value}));
- const filterRows=data.enrollments.filter(r=>(!filters.course||r.curso===filters.course)&&(!filters.shift||r.turno===filters.shift)&&(!filters.period||r.periodo===filters.period)&&(!filters.category||r.categoria===filters.category)&&(!filters.state||r.estado===filters.state)&&`${r.estudiante} ${r.curso}`.toLowerCase().includes(search.toLowerCase()));
- const button=(title,fn,Icon=Plus,cls='primary')=><button className={cls} onClick={fn} disabled={busy}><Icon size={16}/>{title}</button>;
- const exportButton=(format)=><button className="secondary" disabled={busy} onClick={()=>act(()=>download(`/reports/${report.id}/export/${format}`))}><Download size={16}/>{format==='pdf'?'PDF para imprimir':'Excel editable'}</button>;
- function studentForm(row={}){setModal({kind:'student',title:row.id?'Editar estudiante':'Nuevo estudiante',data:{nombres:'',apellidos:'',ci:'',telefono:'',observaciones:'',active:1,...row}});}
- const updateModal=(key,value)=>setModal(prev=>({...prev,data:{...prev.data,[key]:value}}));
- async function saveForm(e){e.preventDefault();await act(async()=>{const v=modal.data;if(modal.kind==='student')await api(`/students${v.id?`/${v.id}`:''}`,v,v.id?'PUT':'POST');if(modal.kind==='course')await api(`/courses${v.id?`/${v.id}`:''}`,v,v.id?'PUT':'POST');if(modal.kind==='enroll')await api('/enrollments',v);if(modal.kind==='state')await api(`/enrollments/${v.id}`,v,'PUT');if(modal.kind==='grade')await api('/grades',v);setModal(null);await reload();setPending(null);},'Cambios guardados correctamente.');}
- function gradeForm(row){setModal({kind:'grade',title:'Registrar calificación',subtitle:`${row.estudiante} · ${row.curso}`,data:{enrollment_id:row.id,valor:row.valor??'',periodo:row.periodo||month,observacion:row.observacion||''}});}
- const enrollForm=()=>setModal({kind:'enroll',title:'Nueva inscripción',subtitle:'Cada curso se registra de forma independiente.',data:{student_id:'',course_id:'',fecha_ingreso:today(),turno:shifts[0]||'Mañana',horario:data.settings.horarios?.[shifts[0]]||'',deliberate:false}});
- const consultPending=()=>act(async()=>{const query=new URLSearchParams({category:reportFilter.categoria,period:reportFilter.periodo,shift:reportFilter.turno});setPending(await api(`/pending?${query}`));setSelected([]);});
- const createPreview=()=>act(async()=>{const r=await api('/reports',{...reportFilter,grade_ids:selected});setReport(r);setResponsible(data.settings.docente||'');setConfirmed(false);setDelivery(today());setRectify(false);setCorrections({});await reload();});
- const submitReport=e=>{e.preventDefault();act(async()=>{const result=rectify?await api(`/reports/${report.id}/rectify`,{confirmed,responsable:responsible,fecha_presentacion:delivery,motivo:reason,corrections}):await api(`/reports/${report.id}/confirm`,{confirmed,responsable:responsible,fecha_presentacion:delivery});setReport(result.report);setConfirmed(false);setRectify(false);setPending(null);setSelected([]);await reload();setNotice({error:!!result.warning,text:result.warning||'Entrega confirmada. El informe quedó archivado.'});});};
- const restoreFile=async(e)=>{const file=e.target.files[0];e.target.value='';if(!file)return;setModal({kind:'restore',title:'Restaurar copia de seguridad',file});};
- if(loading)return <div className="boot"><span className="brand-mark">C</span><LoaderCircle className="spin"/><p>Preparando tu espacio académico…</p></div>;
- return <div className="app-shell"><aside className="sidebar"><a className="brand" href="#" onClick={e=>{e.preventDefault();navigate('Panel principal');}}><span className="brand-mark">C<span>•</span></span><span>CEICOM<small>GESTIÓN ACADÉMICA</small></span></a><div className="nav-caption">ESPACIO DE TRABAJO</div><nav>{nav.map(([name,Icon])=><button key={name} className={page===name?'nav-item selected':'nav-item'} onClick={()=>navigate(name)}><Icon size={19}/><span>{name}</span>{name==='Informes'&&pendingAll.length>0&&<b>{pendingAll.length}</b>}</button>)}</nav><div className="sidebar-bottom"><button className="nav-item" onClick={()=>setModal({kind:'help',title:'Tu guía de CEICOM'})}><HelpCircle size={18}/>Guía de uso</button><div className="local-indicator"><span className="online-dot"/><div>Tu información, en tu equipo<small>SQLite local · Guardado automático</small></div></div><div className="profile"><span className="avatar">{(data.settings.docente||'DC').split(' ').map(s=>s[0]).slice(0,2).join('')}</span><div>{data.settings.docente||'Docente CEICOM'}<small>Administración académica</small></div><ShieldCheck size={16}/></div></div></aside>
- <main><div className="topbar"><span>Espacio académico <ChevronRight size={14}/><strong>{page}</strong></span><div><span className={`mode-pill ${demo?'demo':''}`}><span className="online-dot"/>{demo?'Datos ficticios':'Uso local'}</span><button className="icon-btn" title="Configuración" onClick={()=>navigate('Configuración')}><Settings size={18}/></button></div></div>
- {demo&&<div className="demo-banner"><FlaskConical size={18}/><span>Modo demostración · Todos los datos de este espacio son ficticios.</span><button onClick={switchDemo} disabled={busy}><ArrowLeft size={14}/>Volver a mis datos</button></div>}
- <div className="workspace"><div className="page-heading"><div><div className="eyebrow">CEICOM / {page.toUpperCase()}</div><h1>{page==='Panel principal'?'Todo listo para enseñar.':page}</h1><p>{({'Panel principal':'Tu actividad académica, organizada en un solo lugar.',Estudiantes:'Registra una vez. Acompaña cada etapa de su aprendizaje.',Inscripciones:'Un estudiante, múltiples cursos. Cada inscripción es independiente.',Calificaciones:'Registra el avance sin perder de vista lo que falta entregar.',Informes:'Revisa, selecciona y confirma únicamente lo que ya presentaste.',Historial:'Cada entrega conserva sus datos originales, siempre.',Configuración:'Personaliza tu institución y protege tu información.'})[page]}</p></div><div className="heading-actions">{page==='Panel principal'?<span className="date-chip"><CalendarDays size={16}/>{monthName(month)}</span>:page==='Estudiantes'?button('Nuevo estudiante',()=>studentForm()):page==='Inscripciones'?button('Nueva inscripción',enrollForm):page==='Configuración'?button('Nuevo curso',()=>setModal({kind:'course',title:'Agregar curso',data:{nombre:'',categoria:categories[0],activo:1}})):null}</div></div>
- {page==='Panel principal'&&<><section className="welcome-card"><div><span className="welcome-label"><span/> CONTROL ACADÉMICO</span><h2>Menos planillas.<br/>Más tiempo para tus estudiantes.</h2><p>Registra las notas, prepara tus informes y conserva<br className="desktop"/> cada entrega en un historial seguro.</p><div>{button('Preparar un informe',()=>navigate('Informes'),ArrowUpRight)}{!demo&&<button className="welcome-demo" onClick={switchDemo}><FlaskConical size={16}/>Probar con datos ficticios</button>}</div></div><div className="welcome-art" aria-hidden="true"><div className="art-dot"/><div className="paper"><div className="paper-top"><span className="paper-logo">C</span><span>CEICOM<small>PLANILLA ACADÉMICA</small></span><CheckCircle2 size={22}/></div><div className="paper-line wide"/><div className="paper-line"/><div className="paper-table">{[1,2,3].map(n=><div key={n}><span/><span/><b><Check size={11}/></b></div>)}</div><div className="paper-footer">Organizado. Respaldado. Listo.</div></div><span className="art-badge"><ShieldCheck size={17}/>Historial protegido</span></div></section>
- <section className="stats-grid">{[[Users,'Estudiantes registrados',data.students.length,'Una ficha por estudiante','purple'],[BookOpen,'Inscripciones activas',data.enrollments.filter(r=>r.estado==='activo').length,'En cursos individuales','blue'],[Clock3,'Notas por presentar',pendingAll.length,'Requieren confirmar entrega','amber'],[FileText,'Informes de este mes',totalReports,'Entregas confirmadas','green']].map(([Icon,label,value,hint,color])=><div className="stat-card" key={label}><div className="stat-top"><span>{label}</span><span className={`stat-icon ${color}`}><Icon size={19}/></span></div><strong>{value}</strong><small>{hint}</small></div>)}</section>
- <div className="dashboard-grid"><section className="card"><div className="card-heading"><div><h2>Tu próximo cierre mensual</h2><p>Dos categorías, informes independientes.</p></div><span className="subtle-tag">{monthName(month)}</span></div><div className="category-cards">{categories.map((c,i)=>{const num=pendingAll.filter(r=>r.categoria===c).length;return <button className="category-card" key={c} onClick={()=>{setReportFilter({categoria:c,periodo:month,turno:''});setPending(null);navigate('Informes');}}><span className={`category-icon ${i?'blue':'purple'}`}><BookOpen size={21}/></span><div><h3>{c}</h3><p>{data.courses.filter(r=>r.categoria===c&&r.activo).length} cursos disponibles</p><span className={`category-count ${num?'':'muted'}`}>{num?`${num} nota${num!==1?'s':''} pendiente${num!==1?'s':''}`:'Sin notas pendientes'}</span></div><ArrowUpRight size={19}/></button>;})}</div><div className="info-note"><ShieldCheck size={18}/><p><strong>Una nota guardada aún está pendiente.</strong> Solo deja de aparecer cuando confirmas que ya la entregaste.</p></div></section>
- <section className="card"><div className="card-heading"><div><h2>Estado de tus notas</h2><p>De cada inscripción individual.</p></div><GraduationCap size={20}/></div><div className="progress-total"><strong>{notes.length}</strong><span>calificaciones registradas</span></div><div className="progress-track" style={{background:notes.length?'#ecd497':'#eeeaf1'}}><span style={{width:`${notes.length?presented.length/notes.length*100:0}%`}}/></div><div className="legend"><span><i className="wine"/>Presentadas <b>{presented.length}</b></span><span><i className="yellow"/>Pendientes <b>{pendingAll.length}</b></span><span><i/>Sin nota <b>{data.enrollments.length-notes.length}</b></span></div><button className="text-btn" onClick={()=>navigate('Calificaciones')}>Ver calificaciones <ChevronRight size={15}/></button></section></div>
- <section className="card"><div className="card-heading"><div><h2>Estudiantes recientes</h2><p>Los últimos pasos de tu comunidad académica.</p></div><button className="text-btn" onClick={()=>navigate('Estudiantes')}>Ver todos <ArrowUpRight size={15}/></button></div><Table headers={['ESTUDIANTE','CONTACTO','INSCRIPCIONES','ESTADO','']} empty={!data.students.length&&<Empty title="Tu comunidad empieza aquí" text="Registra a tu primer estudiante o explora la demostración." action={button('Registrar estudiante',()=>studentForm())}/>}>{[...data.students].sort((a,b)=>b.id-a.id).slice(0,5).map(s=><tr key={s.id}><td><StudentName student={s}/></td><td className="muted">{s.telefono||'Sin teléfono registrado'}</td><td>{data.enrollments.filter(r=>r.student_id===s.id).length} cursos</td><td><Status value={s.active?'active':'inactive'}/></td><td><button className="icon-btn" aria-label={`Editar ${s.nombres}`} onClick={()=>studentForm(s)}><PenLine size={16}/></button></td></tr>)}</Table></section></>}
- {page==='Estudiantes'&&<section className="card"><div className="table-toolbar"><div className="search"><Search size={17}/><input placeholder="Buscar por nombre, apellido o CI…" value={search} onChange={e=>setSearch(e.target.value)}/></div><span className="muted">{data.students.length} estudiantes en total</span></div><Table headers={['ESTUDIANTE','CI','TELÉFONO','FECHA DE ALTA','ESTADO','ACCIONES']} empty={!data.students.length&&<Empty action={button('Registrar estudiante',()=>studentForm())}/>}>{data.students.filter(s=>`${s.nombres} ${s.apellidos} ${s.ci}`.toLowerCase().includes(search.toLowerCase())).map(s=><tr key={s.id}><td><StudentName student={s}/></td><td>{s.ci||'—'}</td><td>{s.telefono||'—'}</td><td>{s.created_at.slice(0,10)}</td><td><Status value={s.active?'active':'inactive'}/></td><td><button className="row-button" onClick={()=>studentForm(s)}><PenLine size={14}/>Editar</button></td></tr>)}</Table></section>}
- {['Inscripciones','Calificaciones'].includes(page)&&<section className="card"><div className="filters"><div className="search"><Search size={16}/><input placeholder="Buscar estudiante o curso…" value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filtrar curso" value={filters.course} onChange={e=>f('course',e.target.value)}><option value="">Todos los cursos</option>{data.courses.map(c=><option key={c.id}>{c.nombre}</option>)}</select><select aria-label="Filtrar turno" value={filters.shift} onChange={e=>f('shift',e.target.value)}><option value="">Todos los turnos</option>{shifts.map(s=><option key={s}>{s}</option>)}</select>{page==='Calificaciones'&&<input aria-label="Filtrar mes académico" type="month" value={filters.period} onChange={e=>f('period',e.target.value)}/>}</div><Table headers={page==='Inscripciones'?['ESTUDIANTE','CURSO','TURNO / HORARIO','INGRESO','ESTADO','']:['ESTUDIANTE / CURSO','TURNO','NOTA FINAL','MES ACADÉMICO','ENTREGA','']} empty={!filterRows.length&&<Empty title="Sin inscripciones con estos filtros" text="Registra a un estudiante e inscríbelo a uno o varios cursos."/>}>{filterRows.map(r=><tr key={r.id}>{page==='Inscripciones'?<><td><strong>{r.estudiante}</strong><small>Inscripción #{r.id}</small></td><td>{r.curso}<small>{r.categoria}</small></td><td>{r.turno}<small>{r.horario||'Sin horario'}</small></td><td>{r.fecha_ingreso}</td><td><Status value={r.estado}/></td><td><button className="row-button" onClick={()=>setModal({kind:'state',title:'Estado de inscripción',data:{id:r.id,estado:r.estado,fecha_fin:r.fecha_fin||''}})}>Editar</button></td></>:<><td><strong>{r.estudiante}</strong><small>{r.curso} · {r.categoria}</small></td><td>{r.turno}</td><td><span className={`grade-value ${r.valor===null?'none':''}`}>{r.valor??'—'}</span></td><td>{r.periodo||'—'}</td><td><Status value={r.report_id?'presentado':r.grade_id?'pending':'missing'}/></td><td>{r.report_id?<button className="text-btn" onClick={()=>{navigate('Historial');}}>Ver historial</button>:<button className="row-button" onClick={()=>gradeForm(r)}><PenLine size={14}/>{r.grade_id?'Editar nota':'Registrar nota'}</button>}</td></>}</tr>)}</Table>{page==='Calificaciones'&&<div className="table-foot"><AlertCircle size={15}/>«—» significa sin nota; cero es una calificación válida. Las notas presentadas se corrigen por rectificación.</div>}</section>}
- {page==='Informes'&&<><div className="info-note standalone"><ShieldCheck size={21}/><p><strong>Revisar y exportar no confirma la entrega.</strong><br/>Solo se presentarán las notas que selecciones y confirmes expresamente.</p></div><section className="card"><div className="card-heading"><div><h2>Preparar informe mensual</h2><p>Incluye notas pendientes del mes elegido y de meses anteriores.</p></div><span className="step-label">01 / SELECCIONAR</span></div><div className="report-filters"><Field label="Categoría"><select value={reportFilter.categoria} onChange={e=>{setReportFilter({...reportFilter,categoria:e.target.value});setPending(null);setSelected([]);}}>{categories.map(c=><option key={c}>{c}</option>)}</select></Field><Field label="Mes académico del informe"><input type="month" value={reportFilter.periodo} onChange={e=>{setReportFilter({...reportFilter,periodo:e.target.value});setPending(null);setSelected([]);}}/></Field><Field label="Turno / grupo"><select value={reportFilter.turno} onChange={e=>{setReportFilter({...reportFilter,turno:e.target.value});setPending(null);setSelected([]);}}><option value="">Todos los turnos</option>{shifts.map(s=><option key={s}>{s}</option>)}</select></Field>{button('Consultar pendientes',consultPending,Search)}</div></section>{pending!==null&&<section className="card"><div className="card-heading"><div><h2>{pending.length} notas pendientes</h2><p>Marca únicamente las notas que formarán parte de esta entrega.</p></div>{button(`Vista previa (${selected.length})`,createPreview,FileText)}</div>{pending.length?<Table headers={[<input type="checkbox" aria-label="Seleccionar todas las notas" checked={selected.length===pending.length} onChange={e=>setSelected(e.target.checked?pending.map(r=>r.grade_id):[])}/>,'ESTUDIANTE','CURSO','TURNO','NOTA','MES DE NOTA']}>{pending.map(r=><tr key={r.grade_id}><td><input type="checkbox" aria-label={`Incluir ${r.estudiante} ${r.curso}`} checked={selected.includes(r.grade_id)} onChange={e=>setSelected(e.target.checked?[...selected,r.grade_id]:selected.filter(id=>id!==r.grade_id))}/></td><td><strong>{r.estudiante}</strong></td><td>{r.curso}</td><td>{r.turno}</td><td className="grade-value">{r.valor}</td><td>{r.periodo}</td></tr>)}</Table>:<Empty title="No hay notas pendientes" text="Esta categoría está al día para el período seleccionado. No se generará un informe vacío."/>}</section>}</>}
- {page==='Historial'&&<section className="card"><div className="filters"><select aria-label="Categoría de historial" value={filters.category} onChange={e=>f('category',e.target.value)}><option value="">Todas las categorías</option>{categories.map(c=><option key={c}>{c}</option>)}</select><input aria-label="Año de historial" type="number" placeholder="Año" min="1900" max="9999" value={filters.year} onChange={e=>f('year',e.target.value)}/><select aria-label="Mes de historial" value={filters.histMonth} onChange={e=>f('histMonth',e.target.value)}><option value="">Todos los meses</option>{Array.from({length:12},(_,i)=><option key={i} value={String(i+1).padStart(2,'0')}>{new Date(2026,i,15).toLocaleString('es',{month:'long'})}</option>)}</select><select aria-label="Estado de historial" value={filters.state} onChange={e=>f('state',e.target.value)}><option value="">Todos los estados</option>{['borrador','presentado','rectificado'].map(s=><option key={s}>{s}</option>)}</select><select aria-label="Turno de historial" value={filters.shift} onChange={e=>f('shift',e.target.value)}><option value="">Todos los turnos</option>{shifts.map(s=><option key={s}>{s}</option>)}</select></div><Table headers={['INFORME','MES ACADÉMICO','TURNO','ESTADO','ENTREGA','']} empty={!data.reports.length&&<Empty title="Cada entrega tendrá su lugar" text="Los informes que prepares aparecerán aquí, con sus versiones y exportaciones."/>}>{data.reports.filter(r=>(!filters.category||r.categoria===filters.category)&&(!filters.state||r.estado===filters.state)&&(!filters.year||r.periodo.startsWith(filters.year))&&(!filters.histMonth||r.periodo.slice(5)===filters.histMonth)&&(!filters.shift||r.turno===filters.shift)).map(r=><tr key={r.id}><td><strong>#{String(r.id).padStart(4,'0')} · {r.categoria}</strong><small>Versión {r.version}{r.parent_id?` · Rectifica #${r.parent_id}`:''}</small></td><td>{monthName(r.periodo)}</td><td>{r.turno||'Todos'}</td><td><Status value={r.estado}/></td><td>{r.confirmado_at?new Date(r.confirmado_at).toLocaleDateString('es-BO'):'Sin confirmar'}</td><td><button className="row-button" onClick={()=>openReport(r)}><FolderOpen size={15}/>Abrir informe</button></td></tr>)}</Table></section>}
- {page==='Configuración'&&<><div className="settings-grid"><section className="card settings-form"><div className="card-heading"><div><h2>Información institucional</h2><p>Estos datos se conservan en cada informe al cerrar.</p></div><Settings size={20}/></div><form onSubmit={e=>{e.preventDefault();act(async()=>{const cfg=settingsDraft||data.settings;await api('/settings',cfg,'PUT');setSettingsDraft(null);await reload();},'Configuración guardada.');}}><div className="form-grid">{[['institucion','Institución'],['destinatario','Destinatario'],['cargo_destinatario','Cargo del destinatario'],['docente','Nombre del docente'],['cargo_docente','Cargo del docente'],['firma','Texto al pie de firma'],['minimo','Nota mínima'],['maximo','Nota máxima']].map(([key,label])=><Field label={label} key={key}><input type={['minimo','maximo'].includes(key)?'number':'text'} required={['institucion','minimo','maximo'].includes(key)} step="any" value={(settingsDraft||data.settings)[key]??''} onChange={e=>setSettingsDraft({...settingsDraft||data.settings,[key]:e.target.value})}/></Field>)}<Field label="Logo institucional (PNG/JPG, hasta 1 MB)"><input type="file" accept="image/png,image/jpeg" onChange={e=>{const file=e.target.files[0];if(!file)return;if(file.size>1024*1024){setNotice({error:true,text:'El logo debe pesar hasta 1 MB.'});return;}const reader=new FileReader();reader.onload=()=>setSettingsDraft({...settingsDraft||data.settings,logo:reader.result});reader.readAsDataURL(file);}}/>{(settingsDraft||data.settings).logo&&<div className="logo-preview"><img src={(settingsDraft||data.settings).logo} alt="Logo institucional"/><button type="button" className="text-btn" onClick={()=>setSettingsDraft({...settingsDraft||data.settings,logo:''})}>Quitar logo</button></div>}</Field></div><div className="form-actions"><button className="primary" disabled={busy}><Save size={16}/>Guardar configuración</button></div></form></section><div className="settings-side"><section className="card"><div className="card-heading"><div><h2>Copias de seguridad</h2><p>Tu información merece una segunda copia.</p></div><ShieldCheck size={23}/></div><p className="body-copy">Descarga SQLite y todos tus informes en un ZIP verificado. Guárdalo en otro dispositivo para protegerte ante pérdida de la USB.</p><button className="secondary full" disabled={busy} onClick={()=>act(()=>download('/backup'))}><Download size={16}/>Crear copia de seguridad</button><label className="secondary full file-button"><History size={16}/>Restaurar respaldo<input type="file" accept=".zip,application/zip" onChange={restoreFile} disabled={busy}/></label><small className="subtle">La restauración valida el respaldo y conserva una copia del estado anterior.</small></section><section className="card"><div className="card-heading"><div><h2>Espacio de demostración</h2><p>Practica sin cambiar tus datos.</p></div><FlaskConical size={21}/></div><button className="secondary full" onClick={switchDemo} disabled={busy}>{demo?'Volver a mis datos':'Abrir demostración ficticia'}</button></section></div></div><section className="card"><div className="card-heading"><div><h2>Turnos y horarios</h2><p>Se pueden personalizar también al registrar cada inscripción.</p></div></div><div className="schedule-list">{Object.entries((settingsDraft||data.settings).horarios||{}).map(([name,schedule])=><div key={name}><strong>{name}</strong><input aria-label={`Horario ${name}`} value={schedule} onChange={e=>setSettingsDraft({...settingsDraft||data.settings,horarios:{...(settingsDraft||data.settings).horarios,[name]:e.target.value}})}/><button className="icon-btn" aria-label={`Quitar turno ${name}`} onClick={()=>{const horarios={...(settingsDraft||data.settings).horarios};delete horarios[name];setSettingsDraft({...settingsDraft||data.settings,horarios});}}><X size={16}/></button></div>)}<button className="text-btn" onClick={()=>setModal({kind:'shift',title:'Nuevo turno',data:{name:'',schedule:''}})}><Plus size={16}/>Agregar turno</button><button className="secondary" disabled={busy} onClick={()=>act(async()=>{await api('/settings',settingsDraft||data.settings,'PUT');setSettingsDraft(null);await reload();},'Horarios guardados.')}>Guardar horarios</button></div></section><section className="card"><div className="card-heading"><div><h2>Catálogo de cursos</h2><p>12 cursos de Diseño Gráfico y 8 de Paquetes Sueltos como catálogo inicial.</p></div></div><Table headers={['CURSO','CATEGORÍA','ESTADO','']}>{data.courses.map(c=><tr key={c.id}><td><strong>{c.nombre}</strong></td><td>{c.categoria}</td><td><Status value={c.activo?'active':'inactive'}/></td><td><button className="row-button" onClick={()=>setModal({kind:'course',title:'Editar curso',data:{...c}})}><PenLine size={14}/>Editar</button></td></tr>)}</Table></section></>}
- <footer className="page-footer"><span>CEICOM · Gestión académica</span><span><Monitor size={13}/>Tus datos permanecen en este equipo</span></footer></div></main>
- {notice&&<div role={notice.error?'alert':'status'} className={`toast ${notice.error?'error':''}`}>{notice.error?<AlertCircle size={20}/>:<CheckCircle2 size={20}/>}<span>{notice.text}</span><button className="icon-btn" aria-label="Cerrar aviso" onClick={()=>setNotice(null)}><X size={16}/></button></div>}
- {busy&&<div className="busy-indicator" role="status"><LoaderCircle className="spin" size={17}/>Guardando…</div>}
- {modal&&!['help','restore','shift'].includes(modal.kind)&&<Modal title={modal.title} subtitle={modal.subtitle} onClose={()=>!busy&&setModal(null)}><form onSubmit={saveForm}><div className="modal-body form-grid">
- {modal.kind==='student'&&<>{[['nombres','Nombres *'],['apellidos','Apellidos *'],['ci','CI (opcional)'],['telefono','Teléfono (opcional)']].map(([k,label])=><Field key={k} label={label}><input required={['nombres','apellidos'].includes(k)} maxLength={120} value={modal.data[k]} onChange={e=>updateModal(k,e.target.value)}/></Field>)}<Field label="Observaciones"><textarea maxLength={500} value={modal.data.observaciones} onChange={e=>updateModal('observaciones',e.target.value)}/></Field><label className="check-field"><input type="checkbox" checked={!!modal.data.active} onChange={e=>updateModal('active',e.target.checked?1:0)}/>Estudiante activo</label></>}
- {modal.kind==='course'&&<><Field label="Nombre del curso *"><input required maxLength={120} value={modal.data.nombre} onChange={e=>updateModal('nombre',e.target.value)}/></Field><Field label="Categoría"><select value={modal.data.categoria} onChange={e=>updateModal('categoria',e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></Field><label className="check-field"><input type="checkbox" checked={!!modal.data.activo} onChange={e=>updateModal('activo',e.target.checked?1:0)}/>Curso activo</label></>}
- {modal.kind==='enroll'&&<><Field label="Estudiante *"><select required value={modal.data.student_id} onChange={e=>updateModal('student_id',e.target.value)}><option value="">Seleccionar estudiante</option>{data.students.filter(s=>s.active).map(s=><option key={s.id} value={s.id}>{s.nombres} {s.apellidos} · #{s.id}</option>)}</select></Field><Field label="Curso individual *"><select required value={modal.data.course_id} onChange={e=>updateModal('course_id',e.target.value)}><option value="">Seleccionar curso</option>{data.courses.filter(c=>c.activo).map(c=><option key={c.id} value={c.id}>{c.nombre} · {c.categoria}</option>)}</select></Field><Field label="Turno / grupo *"><input list="shifts" required maxLength={120} value={modal.data.turno} onChange={e=>setModal({...modal,data:{...modal.data,turno:e.target.value,horario:data.settings.horarios?.[e.target.value]||modal.data.horario}})}/><datalist id="shifts">{shifts.map(s=><option key={s} value={s}/>)}</datalist></Field><Field label="Fecha de ingreso"><input type="date" required value={modal.data.fecha_ingreso} onChange={e=>updateModal('fecha_ingreso',e.target.value)}/></Field><Field label="Días y horario"><input value={modal.data.horario} maxLength={250} onChange={e=>updateModal('horario',e.target.value)}/></Field><label className="check-field"><input type="checkbox" checked={modal.data.deliberate} onChange={e=>updateModal('deliberate',e.target.checked)}/>Esta es una reinscripción deliberada</label></>}
- {modal.kind==='state'&&<><Field label="Estado"><select value={modal.data.estado} onChange={e=>updateModal('estado',e.target.value)}>{['activo','concluido','retirado'].map(s=><option key={s}>{s}</option>)}</select></Field><Field label="Fecha final (opcional)"><input type="date" value={modal.data.fecha_fin} onChange={e=>updateModal('fecha_fin',e.target.value)}/></Field><p className="form-hint">Cambiar el estado no elimina notas ni confirma su entrega.</p></>}
- {modal.kind==='grade'&&<><Field label={`Nota final (${data.settings.minimo}–${data.settings.maximo}) *`} hint="Cero es una nota válida. Guardar no confirma entrega."><input type="number" required min={data.settings.minimo} max={data.settings.maximo} step="0.01" value={modal.data.valor} onChange={e=>updateModal('valor',e.target.value)}/></Field><Field label="Mes académico de la nota *"><input type="month" required value={modal.data.periodo} onChange={e=>updateModal('periodo',e.target.value)}/></Field><Field label="Observaciones"><textarea maxLength={500} value={modal.data.observacion} onChange={e=>updateModal('observacion',e.target.value)}/></Field></>}
- </div><div className="modal-actions"><button type="button" className="secondary" onClick={()=>setModal(null)} disabled={busy}>Cancelar</button><button className="primary" disabled={busy}><Save size={16}/>Guardar{modal.kind==='grade'?' nota pendiente':''}</button></div></form></Modal>}
- {modal?.kind==='help'&&<Modal title={modal.title} onClose={()=>setModal(null)}><div className="modal-body help"><ol><li>Registra los datos de la institución en Configuración.</li><li>Agrega estudiantes e inscríbelos en cursos individuales.</li><li>Registra cada nota y su mes académico en Calificaciones.</li><li>En Informes, elige categoría, mes y las notas que incluirás.</li><li>Revisa la vista previa. Después de entregar las notas a Dirección, confirma expresamente la entrega.</li><li>Consulta, descarga y rectifica desde Historial. Conserva respaldos en otro dispositivo.</li></ol><div className="info-note"><ShieldCheck size={22}/><p>Guardar una nota, consultar pendientes o descargar un PDF no la marca como presentada.</p></div></div></Modal>}
- {modal?.kind==='shift'&&<Modal title={modal.title} onClose={()=>setModal(null)}><form onSubmit={e=>{e.preventDefault();if(Object.hasOwn((settingsDraft||data.settings).horarios,modal.data.name.trim())){setNotice({error:true,text:'Ya existe un turno con ese nombre.'});return;}setSettingsDraft({...settingsDraft||data.settings,horarios:{...(settingsDraft||data.settings).horarios,[modal.data.name.trim()]:modal.data.schedule.trim()}});setModal(null);}}><div className="modal-body"><Field label="Turno"><input required maxLength={120} value={modal.data.name} onChange={e=>updateModal('name',e.target.value)}/></Field><Field label="Días y horas"><input required value={modal.data.schedule} onChange={e=>updateModal('schedule',e.target.value)}/></Field></div><div className="modal-actions"><button className="primary">Agregar a configuración</button></div></form></Modal>}
- {modal?.kind==='restore'&&<Modal title={modal.title} onClose={()=>!busy&&setModal(null)}><div className="modal-body"><div className="warning-note"><AlertCircle size={23}/><p>Se reemplazarán los estudiantes, las notas y los informes del espacio {demo?'de demostración':'real'}. Se creará una copia previa automáticamente.</p></div><p>Archivo: <strong>{modal.file.name}</strong></p><label className="check-field"><input type="checkbox" checked={!!modal.confirmed} onChange={e=>setModal({...modal,confirmed:e.target.checked})}/>Confirmo que deseo reemplazar los datos actuales con este respaldo.</label></div><div className="modal-actions"><button className="secondary" disabled={busy} onClick={()=>setModal(null)}>Cancelar</button><button className="primary" disabled={busy||!modal.confirmed} onClick={()=>act(async()=>{const response=await fetch('/api/restore',{method:'POST',headers:{'Content-Type':'application/zip','X-CEICOM-Request':'1','X-CEICOM-Demo':demo?'1':'0','X-CEICOM-Confirm':'true'},body:modal.file});const r=await response.json();if(!response.ok)throw new Error(r.error);setModal(null);setPending(null);await reload();setNotice({text:`Respaldo restaurado. Copia previa en ${r.recovery}`});})}>Restaurar y conservar copia previa</button></div></Modal>}
- {report&&<Modal title={`Informe #${String(report.id).padStart(4,'0')} · ${report.categoria}`} subtitle={`Mes académico: ${report.periodo} · Versión ${report.version} · ${report.estado}`} onClose={()=>!busy&&setReport(null)} wide><div className="modal-body"><div className="report-preview-head"><div><strong>{report.contenido.encabezado.institucion}</strong><p>{report.contenido.encabezado.destinatario||'Destinatario sin configurar'} · {report.contenido.encabezado.cargo_destinatario}</p><small>Fecha de entrega: {report.contenido.fecha_presentacion||'Sin confirmar'}</small></div><Status value={report.estado}/></div>{report.motivo&&<div className="info-note"><History size={17}/><p>Rectificación: {report.motivo}</p></div>}<Table headers={['ESTUDIANTE','CURSO','TURNO','NOTA','MES DE NOTA',...(rectify?['NUEVA NOTA']:[])]}>{report.contenido.filas.map(row=><tr key={row.grade_id}><td><strong>{row.estudiante}</strong></td><td>{row.curso}</td><td>{row.turno}</td><td>{row.valor}</td><td>{row.periodo}</td>{rectify&&<td><input type="number" aria-label={`Rectificar ${row.estudiante} ${row.curso}`} min={data.settings.minimo} max={data.settings.maximo} step="0.01" value={corrections[row.grade_id]??''} placeholder="Sin cambio" onChange={e=>{const next={...corrections};if(e.target.value==='')delete next[row.grade_id];else next[row.grade_id]=e.target.value;setCorrections(next);}}/></td>}</tr>)}</Table><div className="report-export">{exportButton('pdf')}{exportButton('xlsx')}{report.estado!=='borrador'&&!rectify&&<button className="secondary" onClick={()=>{setRectify(true);setConfirmed(false);}}><PenLine size={16}/>Crear rectificación</button>}</div>
- {(report.estado==='borrador'||rectify)&&<form onSubmit={submitReport} className="delivery-form"><div className="info-note"><ShieldCheck size={19}/><p>{rectify?'La corrección se guardará como una nueva versión. El informe original seguirá disponible.':'Este borrador aún no presenta ninguna nota. Confirma únicamente después de entregar estas notas a Dirección.'}</p></div><div className="form-grid"><Field label="Responsable de la entrega *"><input required value={responsible} onChange={e=>setResponsible(e.target.value)}/></Field><Field label="Fecha real de entrega *"><input type="date" required value={delivery} onChange={e=>setDelivery(e.target.value)}/></Field>{rectify&&<Field label="Motivo de la rectificación *"><textarea required maxLength={500} value={reason} onChange={e=>setReason(e.target.value)}/></Field>}</div><label className="check-field explicit"><input type="checkbox" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)}/>Confirmo que YA ENTREGUÉ {rectify?'esta rectificación':'exactamente estas notas'} a Dirección Académica.</label><div className="form-actions"><button className="primary" disabled={busy||!confirmed||(rectify&&!Object.keys(corrections).length)}><CheckCircle2 size={17}/>{rectify?'Confirmar rectificación y crear versión':'Confirmar entrega y cerrar informe'}</button></div></form>}
- {report.estado!=='borrador'&&!rectify&&<div className="info-note"><ShieldCheck size={18}/><p>Instantánea protegida. Los cambios posteriores en estudiantes y cursos no modifican este documento. Responsable: {report.responsable}.</p></div>}</div></Modal>}
- </div>;
+import React, { useState, useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  LayoutDashboard,
+  Users,
+  BookOpen,
+  GraduationCap,
+  FileText,
+  History,
+  Settings,
+  Plus,
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  Search,
+  X,
+  Download,
+  ShieldCheck,
+  FolderOpen,
+  CheckCircle2,
+  Clock3,
+  AlertCircle,
+  FlaskConical,
+  ArrowLeft,
+  Save,
+  PenLine,
+  HelpCircle,
+  CalendarDays,
+  Monitor,
+  LoaderCircle,
+} from "lucide-react";
+import "./styles.css";
+const categories = ["Diseño Gráfico", "Paquetes Sueltos"];
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const month = today().slice(0, 7);
+const monthName = (v) =>
+  new Date(`${v}-15T12:00:00`).toLocaleDateString("es-BO", {
+    month: "long",
+    year: "numeric",
+  });
+const initial = {
+  students: [],
+  courses: [],
+  enrollments: [],
+  reports: [],
+  settings: { horarios: {} },
+  categories,
+};
+function Status({ value }) {
+  const labels = {
+    active: "Activo",
+    inactive: "Inactivo",
+    activo: "Activo",
+    concluido: "Concluido",
+    retirado: "Retirado",
+    borrador: "Borrador",
+    presentado: "Presentado",
+    rectificado: "Rectificado",
+    pending: "Pendiente",
+    missing: "Sin nota",
+  };
+  return (
+    <span className={`status ${value}`}>
+      {["presentado", "activo", "active"].includes(value) ? (
+        <Check size={12} />
+      ) : value === "pending" ? (
+        <Clock3 size={12} />
+      ) : null}
+      {labels[value] || value}
+    </span>
+  );
 }
-function StudentName({student:s}){return <div className="student-name"><span className="student-avatar">{s.nombres[0]}{s.apellidos[0]}</span><div><strong>{s.nombres} {s.apellidos}</strong><small>Estudiante #{String(s.id).padStart(4,'0')}</small></div></div>;}
-createRoot(document.getElementById('root')).render(<App/>);
+function Empty({
+  title = "Todavía no hay registros",
+  text = "Agrega tu primer registro para comenzar.",
+  action,
+}) {
+  return (
+    <div className="empty">
+      <div className="empty-icon">
+        <FolderOpen size={29} />
+      </div>
+      <h3>{title}</h3>
+      <p>{text}</p>
+      {action}
+    </div>
+  );
+}
+function Table({ headers, children, empty }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+      {empty}
+    </div>
+  );
+}
+function Field({ label, children, hint }) {
+  const id = React.useId();
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      {React.Children.map(children, (child) =>
+        React.isValidElement(child) &&
+        ["input", "select", "textarea"].includes(child.type)
+          ? React.cloneElement(child, {
+              id,
+              "aria-describedby": hint ? id + "-hint" : undefined,
+            })
+          : child,
+      )}
+      {hint && <small id={id + "-hint"}>{hint}</small>}
+    </div>
+  );
+}
+function Modal({ title, subtitle, children, onClose, wide = false }) {
+  const ref = useRef();
+  useEffect(() => {
+    ref.current.showModal();
+    return () => ref.current?.close();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className={`modal ${wide ? "wide" : ""}`}
+      onCancel={onClose}
+    >
+      <header>
+        <div>
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
+          <X size={20} />
+        </button>
+      </header>
+      {children}
+    </dialog>
+  );
+}
+function App() {
+  const [data, setData] = useState(initial),
+    [page, setPage] = useState("Panel principal"),
+    [demo, setDemo] = useState(localStorage.getItem("ceicom-demo") === "true"),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [notice, setNotice] = useState(null),
+    [modal, setModal] = useState(null),
+    [search, setSearch] = useState(""),
+    [filters, setFilters] = useState({
+      course: "",
+      shift: "",
+      period: "",
+      category: "",
+      state: "",
+      year: "",
+      histMonth: "",
+    });
+  const [reportFilter, setReportFilter] = useState({
+      categoria: categories[0],
+      periodo: month,
+      turno: "",
+    }),
+    [pending, setPending] = useState(null),
+    [selected, setSelected] = useState([]);
+  const [report, setReport] = useState(null),
+    [responsible, setResponsible] = useState(""),
+    [delivery, setDelivery] = useState(today()),
+    [confirmed, setConfirmed] = useState(false),
+    [rectify, setRectify] = useState(false),
+    [corrections, setCorrections] = useState({}),
+    [reason, setReason] = useState("");
+  const [settingsDraft, setSettingsDraft] = useState(null);
+  const api = async (path, body, method = "POST") => {
+    const response = await fetch(`/api${path}`, {
+      method: body === undefined ? "GET" : method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-CEICOM-Request": "1",
+        "X-CEICOM-Demo": demo ? "1" : "0",
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok)
+      throw new Error(result.error || "No se pudo completar la operación.");
+    return result;
+  };
+  async function reload() {
+    const result = await api("/state");
+    setData(result);
+    return result;
+  }
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setPending(null);
+    setSelected([]);
+    setReport(null);
+    setSettingsDraft(null);
+    api("/state")
+      .then((r) => {
+        if (alive) setData(r);
+      })
+      .catch((e) => {
+        if (alive) setNotice({ error: true, text: e.message });
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [demo]);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), notice.error ? 12000 : 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+  function navigate(value) {
+    setPage(value);
+    setSearch("");
+    setFilters({
+      course: "",
+      shift: "",
+      period: "",
+      category: "",
+      state: "",
+      year: "",
+      histMonth: "",
+    });
+  }
+  const act = async (fn, message) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fn();
+      if (message) setNotice({ text: message });
+    } catch (e) {
+      setNotice({ error: true, text: e.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const switchDemo = () => {
+    if (busy) return;
+    localStorage.setItem("ceicom-demo", String(!demo));
+    setDemo(!demo);
+  };
+  const download = async (path, name) => {
+    const response = await fetch(`/api${path}`, {
+      headers: { "X-CEICOM-Demo": demo ? "1" : "0" },
+    });
+    if (!response.ok) {
+      const r = await response.json();
+      throw new Error(r.error);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download =
+      name ||
+      response.headers
+        .get("content-disposition")
+        ?.match(/filename="([^"]+)"/)?.[1] ||
+      "CEICOM.zip";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
+  function openReport(r) {
+    act(async () => {
+      setReport(await api(`/reports/${r.id}`));
+      setResponsible(data.settings.docente || "");
+      setDelivery(today());
+      setConfirmed(false);
+      setRectify(false);
+      setCorrections({});
+      setReason("");
+    });
+  }
+  const notes = data.enrollments.filter((r) => r.grade_id),
+    pendingAll = notes.filter((r) => !r.report_id),
+    presented = notes.filter((r) => r.report_id);
+  const shifts = [
+    ...new Set([
+      ...Object.keys(data.settings.horarios || {}),
+      ...data.enrollments.map((r) => r.turno),
+    ]),
+  ];
+  const totalReports = data.reports.filter(
+    (r) => r.estado !== "borrador" && r.confirmado_at?.slice(0, 7) === month,
+  ).length;
+  const nav = [
+    ["Panel principal", LayoutDashboard],
+    ["Estudiantes", Users],
+    ["Inscripciones", BookOpen],
+    ["Calificaciones", GraduationCap],
+    ["Informes", FileText],
+    ["Historial", History],
+    ["Configuración", Settings],
+  ];
+  const f = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const filterRows = data.enrollments.filter(
+    (r) =>
+      (!filters.course || r.curso === filters.course) &&
+      (!filters.shift || r.turno === filters.shift) &&
+      (!filters.period || r.periodo === filters.period) &&
+      (!filters.category || r.categoria === filters.category) &&
+      (!filters.state || r.estado === filters.state) &&
+      `${r.estudiante} ${r.curso}`.toLowerCase().includes(search.toLowerCase()),
+  );
+  const button = (title, fn, Icon = Plus, cls = "primary") => (
+    <button className={cls} onClick={fn} disabled={busy}>
+      <Icon size={16} />
+      {title}
+    </button>
+  );
+  const exportButton = (format) => (
+    <button
+      className="secondary"
+      disabled={busy}
+      onClick={() =>
+        act(() => download(`/reports/${report.id}/export/${format}`))
+      }
+    >
+      <Download size={16} />
+      {format === "pdf" ? "PDF para imprimir" : "Excel editable"}
+    </button>
+  );
+  function studentForm(row = {}) {
+    setModal({
+      kind: "student",
+      title: row.id ? "Editar estudiante" : "Nuevo estudiante",
+      data: {
+        nombres: "",
+        apellidos: "",
+        ci: "",
+        telefono: "",
+        observaciones: "",
+        active: 1,
+        ...row,
+      },
+    });
+  }
+  const updateModal = (key, value) =>
+    setModal((prev) => ({ ...prev, data: { ...prev.data, [key]: value } }));
+  async function saveForm(e) {
+    e.preventDefault();
+    await act(async () => {
+      const v = modal.data;
+      if (modal.kind === "student")
+        await api(
+          `/students${v.id ? `/${v.id}` : ""}`,
+          v,
+          v.id ? "PUT" : "POST",
+        );
+      if (modal.kind === "course")
+        await api(
+          `/courses${v.id ? `/${v.id}` : ""}`,
+          v,
+          v.id ? "PUT" : "POST",
+        );
+      if (modal.kind === "enroll") await api("/enrollments", v);
+      if (modal.kind === "state") await api(`/enrollments/${v.id}`, v, "PUT");
+      if (modal.kind === "grade") await api("/grades", v);
+      setModal(null);
+      await reload();
+      setPending(null);
+    }, "Cambios guardados correctamente.");
+  }
+  function gradeForm(row) {
+    setModal({
+      kind: "grade",
+      title: "Registrar calificación",
+      subtitle: `${row.estudiante} · ${row.curso}`,
+      data: {
+        enrollment_id: row.id,
+        valor: row.valor ?? "",
+        periodo: row.periodo || month,
+        observacion: row.observacion || "",
+      },
+    });
+  }
+  const enrollForm = () =>
+    setModal({
+      kind: "enroll",
+      title: "Nueva inscripción",
+      subtitle: "Cada curso se registra de forma independiente.",
+      data: {
+        student_id: "",
+        course_id: "",
+        fecha_ingreso: today(),
+        turno: shifts[0] || "Mañana",
+        horario: data.settings.horarios?.[shifts[0]] || "",
+        deliberate: false,
+      },
+    });
+  const consultPending = () =>
+    act(async () => {
+      const query = new URLSearchParams({
+        category: reportFilter.categoria,
+        period: reportFilter.periodo,
+        shift: reportFilter.turno,
+      });
+      setPending(await api(`/pending?${query}`));
+      setSelected([]);
+    });
+  const createPreview = () =>
+    act(async () => {
+      const r = await api("/reports", { ...reportFilter, grade_ids: selected });
+      setReport(r);
+      setResponsible(data.settings.docente || "");
+      setConfirmed(false);
+      setDelivery(today());
+      setRectify(false);
+      setCorrections({});
+      await reload();
+    });
+  const submitReport = (e) => {
+    e.preventDefault();
+    act(async () => {
+      const result = rectify
+        ? await api(`/reports/${report.id}/rectify`, {
+            confirmed,
+            responsable: responsible,
+            fecha_presentacion: delivery,
+            motivo: reason,
+            corrections,
+          })
+        : await api(`/reports/${report.id}/confirm`, {
+            confirmed,
+            responsable: responsible,
+            fecha_presentacion: delivery,
+          });
+      setReport(result.report);
+      setConfirmed(false);
+      setRectify(false);
+      setPending(null);
+      setSelected([]);
+      await reload();
+      setNotice({
+        error: !!result.warning,
+        text:
+          result.warning || "Entrega confirmada. El informe quedó archivado.",
+      });
+    });
+  };
+  const restoreFile = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setModal({ kind: "restore", title: "Restaurar copia de seguridad", file });
+  };
+  if (loading)
+    return (
+      <div className="boot">
+        <span className="brand-mark">C</span>
+        <LoaderCircle className="spin" />
+        <p>Preparando tu espacio académico…</p>
+      </div>
+    );
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <a
+          className="brand"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("Panel principal");
+          }}
+        >
+          <span className="brand-mark">
+            C<span>•</span>
+          </span>
+          <span>
+            CEICOM<small>GESTIÓN ACADÉMICA</small>
+          </span>
+        </a>
+        <div className="nav-caption">ESPACIO DE TRABAJO</div>
+        <nav>
+          {nav.map(([name, Icon]) => (
+            <button
+              key={name}
+              className={page === name ? "nav-item selected" : "nav-item"}
+              onClick={() => navigate(name)}
+            >
+              <Icon size={19} />
+              <span>{name}</span>
+              {name === "Informes" && pendingAll.length > 0 && (
+                <b>{pendingAll.length}</b>
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <button
+            className="nav-item"
+            onClick={() =>
+              setModal({ kind: "help", title: "Tu guía de CEICOM" })
+            }
+          >
+            <HelpCircle size={18} />
+            Guía de uso
+          </button>
+          <div className="local-indicator">
+            <span className="online-dot" />
+            <div>
+              Tu información, en tu equipo
+              <small>SQLite local · Guardado automático</small>
+            </div>
+          </div>
+          <div className="profile">
+            <span className="avatar">
+              {(data.settings.docente || "DC")
+                .split(" ")
+                .map((s) => s[0])
+                .slice(0, 2)
+                .join("")}
+            </span>
+            <div>
+              {data.settings.docente || "Docente CEICOM"}
+              <small>Administración académica</small>
+            </div>
+            <ShieldCheck size={16} />
+          </div>
+        </div>
+      </aside>
+      <main>
+        <div className="topbar">
+          <span>
+            Espacio académico <ChevronRight size={14} />
+            <strong>{page}</strong>
+          </span>
+          <div>
+            <span className={`mode-pill ${demo ? "demo" : ""}`}>
+              <span className="online-dot" />
+              {demo ? "Datos ficticios" : "Uso local"}
+            </span>
+            <button
+              className="icon-btn"
+              title="Configuración"
+              onClick={() => navigate("Configuración")}
+            >
+              <Settings size={18} />
+            </button>
+          </div>
+        </div>
+        {demo && (
+          <div className="demo-banner">
+            <FlaskConical size={18} />
+            <span>
+              Modo demostración · Todos los datos de este espacio son ficticios.
+            </span>
+            <button onClick={switchDemo} disabled={busy}>
+              <ArrowLeft size={14} />
+              Volver a mis datos
+            </button>
+          </div>
+        )}
+        <div className="workspace">
+          <div className="page-heading">
+            <div>
+              <div className="eyebrow">CEICOM / {page.toUpperCase()}</div>
+              <h1>
+                {page === "Panel principal" ? "Todo listo para enseñar." : page}
+              </h1>
+              <p>
+                {
+                  {
+                    "Panel principal":
+                      "Tu actividad académica, organizada en un solo lugar.",
+                    Estudiantes:
+                      "Registra una vez. Acompaña cada etapa de su aprendizaje.",
+                    Inscripciones:
+                      "Un estudiante, múltiples cursos. Cada inscripción es independiente.",
+                    Calificaciones:
+                      "Registra el avance sin perder de vista lo que falta entregar.",
+                    Informes:
+                      "Revisa, selecciona y confirma únicamente lo que ya presentaste.",
+                    Historial:
+                      "Cada entrega conserva sus datos originales, siempre.",
+                    Configuración:
+                      "Personaliza tu institución y protege tu información.",
+                  }[page]
+                }
+              </p>
+            </div>
+            <div className="heading-actions">
+              {page === "Panel principal" ? (
+                <span className="date-chip">
+                  <CalendarDays size={16} />
+                  {monthName(month)}
+                </span>
+              ) : page === "Estudiantes" ? (
+                button("Nuevo estudiante", () => studentForm())
+              ) : page === "Inscripciones" ? (
+                button("Nueva inscripción", enrollForm)
+              ) : page === "Configuración" ? (
+                button("Nuevo curso", () =>
+                  setModal({
+                    kind: "course",
+                    title: "Agregar curso",
+                    data: { nombre: "", categoria: categories[0], activo: 1 },
+                  }),
+                )
+              ) : null}
+            </div>
+          </div>
+          {page === "Panel principal" && (
+            <>
+              <section className="welcome-card">
+                <div>
+                  <span className="welcome-label">
+                    <span /> CONTROL ACADÉMICO
+                  </span>
+                  <h2>
+                    Menos planillas.
+                    <br />
+                    Más tiempo para tus estudiantes.
+                  </h2>
+                  <p>
+                    Registra las notas, prepara tus informes y conserva
+                    <br className="desktop" /> cada entrega en un historial
+                    seguro.
+                  </p>
+                  <div>
+                    {button(
+                      "Preparar un informe",
+                      () => navigate("Informes"),
+                      ArrowUpRight,
+                    )}
+                    {!demo && (
+                      <button className="welcome-demo" onClick={switchDemo}>
+                        <FlaskConical size={16} />
+                        Probar con datos ficticios
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="welcome-art" aria-hidden="true">
+                  <div className="art-dot" />
+                  <div className="paper">
+                    <div className="paper-top">
+                      <span className="paper-logo">C</span>
+                      <span>
+                        CEICOM<small>PLANILLA ACADÉMICA</small>
+                      </span>
+                      <CheckCircle2 size={22} />
+                    </div>
+                    <div className="paper-line wide" />
+                    <div className="paper-line" />
+                    <div className="paper-table">
+                      {[1, 2, 3].map((n) => (
+                        <div key={n}>
+                          <span />
+                          <span />
+                          <b>
+                            <Check size={11} />
+                          </b>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="paper-footer">
+                      Organizado. Respaldado. Listo.
+                    </div>
+                  </div>
+                  <span className="art-badge">
+                    <ShieldCheck size={17} />
+                    Historial protegido
+                  </span>
+                </div>
+              </section>
+              <section className="stats-grid">
+                {[
+                  [
+                    Users,
+                    "Estudiantes registrados",
+                    data.students.length,
+                    "Una ficha por estudiante",
+                    "purple",
+                  ],
+                  [
+                    BookOpen,
+                    "Inscripciones activas",
+                    data.enrollments.filter((r) => r.estado === "activo")
+                      .length,
+                    "En cursos individuales",
+                    "blue",
+                  ],
+                  [
+                    Clock3,
+                    "Notas por presentar",
+                    pendingAll.length,
+                    "Requieren confirmar entrega",
+                    "amber",
+                  ],
+                  [
+                    FileText,
+                    "Informes de este mes",
+                    totalReports,
+                    "Entregas confirmadas",
+                    "green",
+                  ],
+                ].map(([Icon, label, value, hint, color]) => (
+                  <div className="stat-card" key={label}>
+                    <div className="stat-top">
+                      <span>{label}</span>
+                      <span className={`stat-icon ${color}`}>
+                        <Icon size={19} />
+                      </span>
+                    </div>
+                    <strong>{value}</strong>
+                    <small>{hint}</small>
+                  </div>
+                ))}
+              </section>
+              <div className="dashboard-grid">
+                <section className="card">
+                  <div className="card-heading">
+                    <div>
+                      <h2>Tu próximo cierre mensual</h2>
+                      <p>Dos categorías, informes independientes.</p>
+                    </div>
+                    <span className="subtle-tag">{monthName(month)}</span>
+                  </div>
+                  <div className="category-cards">
+                    {categories.map((c, i) => {
+                      const num = pendingAll.filter(
+                        (r) => r.categoria === c,
+                      ).length;
+                      return (
+                        <button
+                          className="category-card"
+                          key={c}
+                          onClick={() => {
+                            setReportFilter({
+                              categoria: c,
+                              periodo: month,
+                              turno: "",
+                            });
+                            setPending(null);
+                            navigate("Informes");
+                          }}
+                        >
+                          <span
+                            className={`category-icon ${i ? "blue" : "purple"}`}
+                          >
+                            <BookOpen size={21} />
+                          </span>
+                          <div>
+                            <h3>{c}</h3>
+                            <p>
+                              {
+                                data.courses.filter(
+                                  (r) => r.categoria === c && r.activo,
+                                ).length
+                              }{" "}
+                              cursos disponibles
+                            </p>
+                            <span
+                              className={`category-count ${num ? "" : "muted"}`}
+                            >
+                              {num
+                                ? `${num} nota${num !== 1 ? "s" : ""} pendiente${num !== 1 ? "s" : ""}`
+                                : "Sin notas pendientes"}
+                            </span>
+                          </div>
+                          <ArrowUpRight size={19} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="info-note">
+                    <ShieldCheck size={18} />
+                    <p>
+                      <strong>Una nota guardada aún está pendiente.</strong>{" "}
+                      Solo deja de aparecer cuando confirmas que ya la
+                      entregaste.
+                    </p>
+                  </div>
+                </section>
+                <section className="card">
+                  <div className="card-heading">
+                    <div>
+                      <h2>Estado de tus notas</h2>
+                      <p>De cada inscripción individual.</p>
+                    </div>
+                    <GraduationCap size={20} />
+                  </div>
+                  <div className="progress-total">
+                    <strong>{notes.length}</strong>
+                    <span>calificaciones registradas</span>
+                  </div>
+                  <div
+                    className="progress-track"
+                    style={{ background: notes.length ? "#ecd497" : "#eeeaf1" }}
+                  >
+                    <span
+                      style={{
+                        width: `${notes.length ? (presented.length / notes.length) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="legend">
+                    <span>
+                      <i className="wine" />
+                      Presentadas <b>{presented.length}</b>
+                    </span>
+                    <span>
+                      <i className="yellow" />
+                      Pendientes <b>{pendingAll.length}</b>
+                    </span>
+                    <span>
+                      <i />
+                      Sin nota <b>{data.enrollments.length - notes.length}</b>
+                    </span>
+                  </div>
+                  <button
+                    className="text-btn"
+                    onClick={() => navigate("Calificaciones")}
+                  >
+                    Ver calificaciones <ChevronRight size={15} />
+                  </button>
+                </section>
+              </div>
+              <section className="card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Estudiantes recientes</h2>
+                    <p>Los últimos pasos de tu comunidad académica.</p>
+                  </div>
+                  <button
+                    className="text-btn"
+                    onClick={() => navigate("Estudiantes")}
+                  >
+                    Ver todos <ArrowUpRight size={15} />
+                  </button>
+                </div>
+                <Table
+                  headers={[
+                    "ESTUDIANTE",
+                    "CONTACTO",
+                    "INSCRIPCIONES",
+                    "ESTADO",
+                    "",
+                  ]}
+                  empty={
+                    !data.students.length && (
+                      <Empty
+                        title="Tu comunidad empieza aquí"
+                        text="Registra a tu primer estudiante o explora la demostración."
+                        action={button("Registrar estudiante", () =>
+                          studentForm(),
+                        )}
+                      />
+                    )
+                  }
+                >
+                  {[...data.students]
+                    .sort((a, b) => b.id - a.id)
+                    .slice(0, 5)
+                    .map((s) => (
+                      <tr key={s.id}>
+                        <td>
+                          <StudentName student={s} />
+                        </td>
+                        <td className="muted">
+                          {s.telefono || "Sin teléfono registrado"}
+                        </td>
+                        <td>
+                          {
+                            data.enrollments.filter(
+                              (r) => r.student_id === s.id,
+                            ).length
+                          }{" "}
+                          cursos
+                        </td>
+                        <td>
+                          <Status value={s.active ? "active" : "inactive"} />
+                        </td>
+                        <td>
+                          <button
+                            className="icon-btn"
+                            aria-label={`Editar ${s.nombres}`}
+                            onClick={() => studentForm(s)}
+                          >
+                            <PenLine size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </Table>
+              </section>
+            </>
+          )}
+          {page === "Estudiantes" && (
+            <section className="card">
+              <div className="table-toolbar">
+                <div className="search">
+                  <Search size={17} />
+                  <input
+                    placeholder="Buscar por nombre, apellido o CI…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <span className="muted">
+                  {data.students.length} estudiantes en total
+                </span>
+              </div>
+              <Table
+                headers={[
+                  "ESTUDIANTE",
+                  "CI",
+                  "TELÉFONO",
+                  "FECHA DE ALTA",
+                  "ESTADO",
+                  "ACCIONES",
+                ]}
+                empty={
+                  !data.students.length && (
+                    <Empty
+                      action={button("Registrar estudiante", () =>
+                        studentForm(),
+                      )}
+                    />
+                  )
+                }
+              >
+                {data.students
+                  .filter((s) =>
+                    `${s.nombres} ${s.apellidos} ${s.ci}`
+                      .toLowerCase()
+                      .includes(search.toLowerCase()),
+                  )
+                  .map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <StudentName student={s} />
+                      </td>
+                      <td>{s.ci || "—"}</td>
+                      <td>{s.telefono || "—"}</td>
+                      <td>{s.created_at.slice(0, 10)}</td>
+                      <td>
+                        <Status value={s.active ? "active" : "inactive"} />
+                      </td>
+                      <td>
+                        <button
+                          className="row-button"
+                          onClick={() => studentForm(s)}
+                        >
+                          <PenLine size={14} />
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </Table>
+            </section>
+          )}
+          {["Inscripciones", "Calificaciones"].includes(page) && (
+            <section className="card">
+              <div className="filters">
+                <div className="search">
+                  <Search size={16} />
+                  <input
+                    placeholder="Buscar estudiante o curso…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+                <select
+                  aria-label="Filtrar curso"
+                  value={filters.course}
+                  onChange={(e) => f("course", e.target.value)}
+                >
+                  <option value="">Todos los cursos</option>
+                  {data.courses.map((c) => (
+                    <option key={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Filtrar turno"
+                  value={filters.shift}
+                  onChange={(e) => f("shift", e.target.value)}
+                >
+                  <option value="">Todos los turnos</option>
+                  {shifts.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+                {page === "Calificaciones" && (
+                  <input
+                    aria-label="Filtrar mes académico"
+                    type="month"
+                    value={filters.period}
+                    onChange={(e) => f("period", e.target.value)}
+                  />
+                )}
+              </div>
+              <Table
+                headers={
+                  page === "Inscripciones"
+                    ? [
+                        "ESTUDIANTE",
+                        "CURSO",
+                        "TURNO / HORARIO",
+                        "INGRESO",
+                        "ESTADO",
+                        "",
+                      ]
+                    : [
+                        "ESTUDIANTE / CURSO",
+                        "TURNO",
+                        "NOTA FINAL",
+                        "MES ACADÉMICO",
+                        "ENTREGA",
+                        "",
+                      ]
+                }
+                empty={
+                  !filterRows.length && (
+                    <Empty
+                      title="Sin inscripciones con estos filtros"
+                      text="Registra a un estudiante e inscríbelo a uno o varios cursos."
+                    />
+                  )
+                }
+              >
+                {filterRows.map((r) => (
+                  <tr key={r.id}>
+                    {page === "Inscripciones" ? (
+                      <>
+                        <td>
+                          <strong>{r.estudiante}</strong>
+                          <small>Inscripción #{r.id}</small>
+                        </td>
+                        <td>
+                          {r.curso}
+                          <small>{r.categoria}</small>
+                        </td>
+                        <td>
+                          {r.turno}
+                          <small>{r.horario || "Sin horario"}</small>
+                        </td>
+                        <td>{r.fecha_ingreso}</td>
+                        <td>
+                          <Status value={r.estado} />
+                        </td>
+                        <td>
+                          <button
+                            className="row-button"
+                            onClick={() =>
+                              setModal({
+                                kind: "state",
+                                title: "Estado de inscripción",
+                                data: {
+                                  id: r.id,
+                                  estado: r.estado,
+                                  fecha_fin: r.fecha_fin || "",
+                                },
+                              })
+                            }
+                          >
+                            Editar
+                          </button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td>
+                          <strong>{r.estudiante}</strong>
+                          <small>
+                            {r.curso} · {r.categoria}
+                          </small>
+                        </td>
+                        <td>{r.turno}</td>
+                        <td>
+                          <span
+                            className={`grade-value ${r.valor === null ? "none" : ""}`}
+                          >
+                            {r.valor ?? "—"}
+                          </span>
+                        </td>
+                        <td>{r.periodo || "—"}</td>
+                        <td>
+                          <Status
+                            value={
+                              r.report_id
+                                ? "presentado"
+                                : r.grade_id
+                                  ? "pending"
+                                  : "missing"
+                            }
+                          />
+                        </td>
+                        <td>
+                          {r.report_id ? (
+                            <button
+                              className="text-btn"
+                              onClick={() => {
+                                navigate("Historial");
+                              }}
+                            >
+                              Ver historial
+                            </button>
+                          ) : (
+                            <button
+                              className="row-button"
+                              onClick={() => gradeForm(r)}
+                            >
+                              <PenLine size={14} />
+                              {r.grade_id ? "Editar nota" : "Registrar nota"}
+                            </button>
+                          )}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </Table>
+              {page === "Calificaciones" && (
+                <div className="table-foot">
+                  <AlertCircle size={15} />
+                  «—» significa sin nota; cero es una calificación válida. Las
+                  notas presentadas se corrigen por rectificación.
+                </div>
+              )}
+            </section>
+          )}
+          {page === "Informes" && (
+            <>
+              <div className="info-note standalone">
+                <ShieldCheck size={21} />
+                <p>
+                  <strong>Revisar y exportar no confirma la entrega.</strong>
+                  <br />
+                  Solo se presentarán las notas que selecciones y confirmes
+                  expresamente.
+                </p>
+              </div>
+              <section className="card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Preparar informe mensual</h2>
+                    <p>
+                      Incluye notas pendientes del mes elegido y de meses
+                      anteriores.
+                    </p>
+                  </div>
+                  <span className="step-label">01 / SELECCIONAR</span>
+                </div>
+                <div className="report-filters">
+                  <Field label="Categoría">
+                    <select
+                      value={reportFilter.categoria}
+                      onChange={(e) => {
+                        setReportFilter({
+                          ...reportFilter,
+                          categoria: e.target.value,
+                        });
+                        setPending(null);
+                        setSelected([]);
+                      }}
+                    >
+                      {categories.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Mes académico del informe">
+                    <input
+                      type="month"
+                      value={reportFilter.periodo}
+                      onChange={(e) => {
+                        setReportFilter({
+                          ...reportFilter,
+                          periodo: e.target.value,
+                        });
+                        setPending(null);
+                        setSelected([]);
+                      }}
+                    />
+                  </Field>
+                  <Field label="Turno / grupo">
+                    <select
+                      value={reportFilter.turno}
+                      onChange={(e) => {
+                        setReportFilter({
+                          ...reportFilter,
+                          turno: e.target.value,
+                        });
+                        setPending(null);
+                        setSelected([]);
+                      }}
+                    >
+                      <option value="">Todos los turnos</option>
+                      {shifts.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  {button("Consultar pendientes", consultPending, Search)}
+                </div>
+              </section>
+              {pending !== null && (
+                <section className="card">
+                  <div className="card-heading">
+                    <div>
+                      <h2>{pending.length} notas pendientes</h2>
+                      <p>
+                        Marca únicamente las notas que formarán parte de esta
+                        entrega.
+                      </p>
+                    </div>
+                    {button(
+                      `Vista previa (${selected.length})`,
+                      createPreview,
+                      FileText,
+                    )}
+                  </div>
+                  {pending.length ? (
+                    <Table
+                      headers={[
+                        <input
+                          type="checkbox"
+                          aria-label="Seleccionar todas las notas"
+                          checked={selected.length === pending.length}
+                          onChange={(e) =>
+                            setSelected(
+                              e.target.checked
+                                ? pending.map((r) => r.grade_id)
+                                : [],
+                            )
+                          }
+                        />,
+                        "ESTUDIANTE",
+                        "CURSO",
+                        "TURNO",
+                        "NOTA",
+                        "MES DE NOTA",
+                      ]}
+                    >
+                      {pending.map((r) => (
+                        <tr key={r.grade_id}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              aria-label={`Incluir ${r.estudiante} ${r.curso}`}
+                              checked={selected.includes(r.grade_id)}
+                              onChange={(e) =>
+                                setSelected(
+                                  e.target.checked
+                                    ? [...selected, r.grade_id]
+                                    : selected.filter(
+                                        (id) => id !== r.grade_id,
+                                      ),
+                                )
+                              }
+                            />
+                          </td>
+                          <td>
+                            <strong>{r.estudiante}</strong>
+                          </td>
+                          <td>{r.curso}</td>
+                          <td>{r.turno}</td>
+                          <td className="grade-value">{r.valor}</td>
+                          <td>{r.periodo}</td>
+                        </tr>
+                      ))}
+                    </Table>
+                  ) : (
+                    <Empty
+                      title="No hay notas pendientes"
+                      text="Esta categoría está al día para el período seleccionado. No se generará un informe vacío."
+                    />
+                  )}
+                </section>
+              )}
+            </>
+          )}
+          {page === "Historial" && (
+            <section className="card">
+              <div className="filters">
+                <select
+                  aria-label="Categoría de historial"
+                  value={filters.category}
+                  onChange={(e) => f("category", e.target.value)}
+                >
+                  <option value="">Todas las categorías</option>
+                  {categories.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <input
+                  aria-label="Año de historial"
+                  type="number"
+                  placeholder="Año"
+                  min="1900"
+                  max="9999"
+                  value={filters.year}
+                  onChange={(e) => f("year", e.target.value)}
+                />
+                <select
+                  aria-label="Mes de historial"
+                  value={filters.histMonth}
+                  onChange={(e) => f("histMonth", e.target.value)}
+                >
+                  <option value="">Todos los meses</option>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <option key={i} value={String(i + 1).padStart(2, "0")}>
+                      {new Date(2026, i, 15).toLocaleString("es", {
+                        month: "long",
+                      })}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Estado de historial"
+                  value={filters.state}
+                  onChange={(e) => f("state", e.target.value)}
+                >
+                  <option value="">Todos los estados</option>
+                  {["borrador", "presentado", "rectificado"].map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Turno de historial"
+                  value={filters.shift}
+                  onChange={(e) => f("shift", e.target.value)}
+                >
+                  <option value="">Todos los turnos</option>
+                  {shifts.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <Table
+                headers={[
+                  "INFORME",
+                  "MES ACADÉMICO",
+                  "TURNO",
+                  "ESTADO",
+                  "ENTREGA",
+                  "",
+                ]}
+                empty={
+                  !data.reports.length && (
+                    <Empty
+                      title="Cada entrega tendrá su lugar"
+                      text="Los informes que prepares aparecerán aquí, con sus versiones y exportaciones."
+                    />
+                  )
+                }
+              >
+                {data.reports
+                  .filter(
+                    (r) =>
+                      (!filters.category || r.categoria === filters.category) &&
+                      (!filters.state || r.estado === filters.state) &&
+                      (!filters.year || r.periodo.startsWith(filters.year)) &&
+                      (!filters.histMonth ||
+                        r.periodo.slice(5) === filters.histMonth) &&
+                      (!filters.shift || r.turno === filters.shift),
+                  )
+                  .map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <strong>
+                          #{String(r.id).padStart(4, "0")} · {r.categoria}
+                        </strong>
+                        <small>
+                          Versión {r.version}
+                          {r.parent_id ? ` · Rectifica #${r.parent_id}` : ""}
+                        </small>
+                      </td>
+                      <td>{monthName(r.periodo)}</td>
+                      <td>{r.turno || "Todos"}</td>
+                      <td>
+                        <Status value={r.estado} />
+                      </td>
+                      <td>
+                        {r.confirmado_at
+                          ? new Date(r.confirmado_at).toLocaleDateString(
+                              "es-BO",
+                            )
+                          : "Sin confirmar"}
+                      </td>
+                      <td>
+                        <button
+                          className="row-button"
+                          onClick={() => openReport(r)}
+                        >
+                          <FolderOpen size={15} />
+                          Abrir informe
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </Table>
+            </section>
+          )}
+          {page === "Configuración" && (
+            <>
+              <div className="settings-grid">
+                <section className="card settings-form">
+                  <div className="card-heading">
+                    <div>
+                      <h2>Información institucional</h2>
+                      <p>Estos datos se conservan en cada informe al cerrar.</p>
+                    </div>
+                    <Settings size={20} />
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      act(async () => {
+                        const cfg = settingsDraft || data.settings;
+                        await api("/settings", cfg, "PUT");
+                        setSettingsDraft(null);
+                        await reload();
+                      }, "Configuración guardada.");
+                    }}
+                  >
+                    <div className="form-grid">
+                      {[
+                        ["institucion", "Institución"],
+                        ["destinatario", "Destinatario"],
+                        ["cargo_destinatario", "Cargo del destinatario"],
+                        ["docente", "Nombre del docente"],
+                        ["cargo_docente", "Cargo del docente"],
+                        ["firma", "Texto al pie de firma"],
+                        ["minimo", "Nota mínima"],
+                        ["maximo", "Nota máxima"],
+                      ].map(([key, label]) => (
+                        <Field label={label} key={key}>
+                          <input
+                            type={
+                              ["minimo", "maximo"].includes(key)
+                                ? "number"
+                                : "text"
+                            }
+                            required={[
+                              "institucion",
+                              "minimo",
+                              "maximo",
+                            ].includes(key)}
+                            step="any"
+                            value={(settingsDraft || data.settings)[key] ?? ""}
+                            onChange={(e) =>
+                              setSettingsDraft({
+                                ...(settingsDraft || data.settings),
+                                [key]: e.target.value,
+                              })
+                            }
+                          />
+                        </Field>
+                      ))}
+                      <Field label="Logo institucional (PNG/JPG, hasta 1 MB)">
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            if (file.size > 1024 * 1024) {
+                              setNotice({
+                                error: true,
+                                text: "El logo debe pesar hasta 1 MB.",
+                              });
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () =>
+                              setSettingsDraft({
+                                ...(settingsDraft || data.settings),
+                                logo: reader.result,
+                              });
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                        {(settingsDraft || data.settings).logo && (
+                          <div className="logo-preview">
+                            <img
+                              src={(settingsDraft || data.settings).logo}
+                              alt="Logo institucional"
+                            />
+                            <button
+                              type="button"
+                              className="text-btn"
+                              onClick={() =>
+                                setSettingsDraft({
+                                  ...(settingsDraft || data.settings),
+                                  logo: "",
+                                })
+                              }
+                            >
+                              Quitar logo
+                            </button>
+                          </div>
+                        )}
+                      </Field>
+                    </div>
+                    <div className="form-actions">
+                      <button className="primary" disabled={busy}>
+                        <Save size={16} />
+                        Guardar configuración
+                      </button>
+                    </div>
+                  </form>
+                </section>
+                <div className="settings-side">
+                  <section className="card">
+                    <div className="card-heading">
+                      <div>
+                        <h2>Copias de seguridad</h2>
+                        <p>Tu información merece una segunda copia.</p>
+                      </div>
+                      <ShieldCheck size={23} />
+                    </div>
+                    <p className="body-copy">
+                      Descarga SQLite y todos tus informes en un ZIP verificado.
+                      Guárdalo en otro dispositivo para protegerte ante pérdida
+                      de la USB.
+                    </p>
+                    <button
+                      className="secondary full"
+                      disabled={busy}
+                      onClick={() => act(() => download("/backup"))}
+                    >
+                      <Download size={16} />
+                      Crear copia de seguridad
+                    </button>
+                    <label className="secondary full file-button">
+                      <History size={16} />
+                      Restaurar respaldo
+                      <input
+                        type="file"
+                        accept=".zip,application/zip"
+                        onChange={restoreFile}
+                        disabled={busy}
+                      />
+                    </label>
+                    <small className="subtle">
+                      La restauración valida el respaldo y conserva una copia
+                      del estado anterior.
+                    </small>
+                  </section>
+                  <section className="card">
+                    <div className="card-heading">
+                      <div>
+                        <h2>Espacio de demostración</h2>
+                        <p>Practica sin cambiar tus datos.</p>
+                      </div>
+                      <FlaskConical size={21} />
+                    </div>
+                    <button
+                      className="secondary full"
+                      onClick={switchDemo}
+                      disabled={busy}
+                    >
+                      {demo
+                        ? "Volver a mis datos"
+                        : "Abrir demostración ficticia"}
+                    </button>
+                  </section>
+                </div>
+              </div>
+              <section className="card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Turnos y horarios</h2>
+                    <p>
+                      Se pueden personalizar también al registrar cada
+                      inscripción.
+                    </p>
+                  </div>
+                </div>
+                <div className="schedule-list">
+                  {Object.entries(
+                    (settingsDraft || data.settings).horarios || {},
+                  ).map(([name, schedule]) => (
+                    <div key={name}>
+                      <strong>{name}</strong>
+                      <input
+                        aria-label={`Horario ${name}`}
+                        value={schedule}
+                        onChange={(e) =>
+                          setSettingsDraft({
+                            ...(settingsDraft || data.settings),
+                            horarios: {
+                              ...(settingsDraft || data.settings).horarios,
+                              [name]: e.target.value,
+                            },
+                          })
+                        }
+                      />
+                      <button
+                        className="icon-btn"
+                        aria-label={`Quitar turno ${name}`}
+                        onClick={() => {
+                          const horarios = {
+                            ...(settingsDraft || data.settings).horarios,
+                          };
+                          delete horarios[name];
+                          setSettingsDraft({
+                            ...(settingsDraft || data.settings),
+                            horarios,
+                          });
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="text-btn"
+                    onClick={() =>
+                      setModal({
+                        kind: "shift",
+                        title: "Nuevo turno",
+                        data: { name: "", schedule: "" },
+                      })
+                    }
+                  >
+                    <Plus size={16} />
+                    Agregar turno
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      act(async () => {
+                        await api(
+                          "/settings",
+                          settingsDraft || data.settings,
+                          "PUT",
+                        );
+                        setSettingsDraft(null);
+                        await reload();
+                      }, "Horarios guardados.")
+                    }
+                  >
+                    Guardar horarios
+                  </button>
+                </div>
+              </section>
+              <section className="card">
+                <div className="card-heading">
+                  <div>
+                    <h2>Catálogo de cursos</h2>
+                    <p>
+                      12 cursos de Diseño Gráfico y 8 de Paquetes Sueltos como
+                      catálogo inicial.
+                    </p>
+                  </div>
+                </div>
+                <Table headers={["CURSO", "CATEGORÍA", "ESTADO", ""]}>
+                  {data.courses.map((c) => (
+                    <tr key={c.id}>
+                      <td>
+                        <strong>{c.nombre}</strong>
+                      </td>
+                      <td>{c.categoria}</td>
+                      <td>
+                        <Status value={c.activo ? "active" : "inactive"} />
+                      </td>
+                      <td>
+                        <button
+                          className="row-button"
+                          onClick={() =>
+                            setModal({
+                              kind: "course",
+                              title: "Editar curso",
+                              data: { ...c },
+                            })
+                          }
+                        >
+                          <PenLine size={14} />
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </Table>
+              </section>
+            </>
+          )}
+          <footer className="page-footer">
+            <span>CEICOM · Gestión académica</span>
+            <span>
+              <Monitor size={13} />
+              Tus datos permanecen en este equipo
+            </span>
+          </footer>
+        </div>
+      </main>
+      {notice && (
+        <div
+          role={notice.error ? "alert" : "status"}
+          className={`toast ${notice.error ? "error" : ""}`}
+        >
+          {notice.error ? (
+            <AlertCircle size={20} />
+          ) : (
+            <CheckCircle2 size={20} />
+          )}
+          <span>{notice.text}</span>
+          <button
+            className="icon-btn"
+            aria-label="Cerrar aviso"
+            onClick={() => setNotice(null)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {busy && (
+        <div className="busy-indicator" role="status">
+          <LoaderCircle className="spin" size={17} />
+          Guardando…
+        </div>
+      )}
+      {modal && !["help", "restore", "shift"].includes(modal.kind) && (
+        <Modal
+          title={modal.title}
+          subtitle={modal.subtitle}
+          onClose={() => !busy && setModal(null)}
+        >
+          <form onSubmit={saveForm}>
+            <div className="modal-body form-grid">
+              {modal.kind === "student" && (
+                <>
+                  {[
+                    ["nombres", "Nombres *"],
+                    ["apellidos", "Apellidos *"],
+                    ["ci", "CI (opcional)"],
+                    ["telefono", "Teléfono (opcional)"],
+                  ].map(([k, label]) => (
+                    <Field key={k} label={label}>
+                      <input
+                        required={["nombres", "apellidos"].includes(k)}
+                        maxLength={120}
+                        value={modal.data[k]}
+                        onChange={(e) => updateModal(k, e.target.value)}
+                      />
+                    </Field>
+                  ))}
+                  <Field label="Observaciones">
+                    <textarea
+                      maxLength={500}
+                      value={modal.data.observaciones}
+                      onChange={(e) =>
+                        updateModal("observaciones", e.target.value)
+                      }
+                    />
+                  </Field>
+                  <label className="check-field">
+                    <input
+                      type="checkbox"
+                      checked={!!modal.data.active}
+                      onChange={(e) =>
+                        updateModal("active", e.target.checked ? 1 : 0)
+                      }
+                    />
+                    Estudiante activo
+                  </label>
+                </>
+              )}
+              {modal.kind === "course" && (
+                <>
+                  <Field label="Nombre del curso *">
+                    <input
+                      required
+                      maxLength={120}
+                      value={modal.data.nombre}
+                      onChange={(e) => updateModal("nombre", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Categoría">
+                    <select
+                      value={modal.data.categoria}
+                      onChange={(e) => updateModal("categoria", e.target.value)}
+                    >
+                      {categories.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <label className="check-field">
+                    <input
+                      type="checkbox"
+                      checked={!!modal.data.activo}
+                      onChange={(e) =>
+                        updateModal("activo", e.target.checked ? 1 : 0)
+                      }
+                    />
+                    Curso activo
+                  </label>
+                </>
+              )}
+              {modal.kind === "enroll" && (
+                <>
+                  <Field label="Estudiante *">
+                    <select
+                      required
+                      value={modal.data.student_id}
+                      onChange={(e) =>
+                        updateModal("student_id", e.target.value)
+                      }
+                    >
+                      <option value="">Seleccionar estudiante</option>
+                      {data.students
+                        .filter((s) => s.active)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.nombres} {s.apellidos} · #{s.id}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                  <Field label="Curso individual *">
+                    <select
+                      required
+                      value={modal.data.course_id}
+                      onChange={(e) => updateModal("course_id", e.target.value)}
+                    >
+                      <option value="">Seleccionar curso</option>
+                      {data.courses
+                        .filter((c) => c.activo)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nombre} · {c.categoria}
+                          </option>
+                        ))}
+                    </select>
+                  </Field>
+                  <Field label="Turno / grupo *">
+                    <input
+                      list="shifts"
+                      required
+                      maxLength={120}
+                      value={modal.data.turno}
+                      onChange={(e) =>
+                        setModal({
+                          ...modal,
+                          data: {
+                            ...modal.data,
+                            turno: e.target.value,
+                            horario:
+                              data.settings.horarios?.[e.target.value] ||
+                              modal.data.horario,
+                          },
+                        })
+                      }
+                    />
+                    <datalist id="shifts">
+                      {shifts.map((s) => (
+                        <option key={s} value={s} />
+                      ))}
+                    </datalist>
+                  </Field>
+                  <Field label="Fecha de ingreso">
+                    <input
+                      type="date"
+                      required
+                      value={modal.data.fecha_ingreso}
+                      onChange={(e) =>
+                        updateModal("fecha_ingreso", e.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field label="Días y horario">
+                    <input
+                      value={modal.data.horario}
+                      maxLength={250}
+                      onChange={(e) => updateModal("horario", e.target.value)}
+                    />
+                  </Field>
+                  <label className="check-field">
+                    <input
+                      type="checkbox"
+                      checked={modal.data.deliberate}
+                      onChange={(e) =>
+                        updateModal("deliberate", e.target.checked)
+                      }
+                    />
+                    Esta es una reinscripción deliberada
+                  </label>
+                </>
+              )}
+              {modal.kind === "state" && (
+                <>
+                  <Field label="Estado">
+                    <select
+                      value={modal.data.estado}
+                      onChange={(e) => updateModal("estado", e.target.value)}
+                    >
+                      {["activo", "concluido", "retirado"].map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Fecha final (opcional)">
+                    <input
+                      type="date"
+                      value={modal.data.fecha_fin}
+                      onChange={(e) => updateModal("fecha_fin", e.target.value)}
+                    />
+                  </Field>
+                  <p className="form-hint">
+                    Cambiar el estado no elimina notas ni confirma su entrega.
+                  </p>
+                </>
+              )}
+              {modal.kind === "grade" && (
+                <>
+                  <Field
+                    label={`Nota final (${data.settings.minimo}–${data.settings.maximo}) *`}
+                    hint="Cero es una nota válida. Guardar no confirma entrega."
+                  >
+                    <input
+                      type="number"
+                      required
+                      min={data.settings.minimo}
+                      max={data.settings.maximo}
+                      step="0.01"
+                      value={modal.data.valor}
+                      onChange={(e) => updateModal("valor", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Mes académico de la nota *">
+                    <input
+                      type="month"
+                      required
+                      value={modal.data.periodo}
+                      onChange={(e) => updateModal("periodo", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Observaciones">
+                    <textarea
+                      maxLength={500}
+                      value={modal.data.observacion}
+                      onChange={(e) =>
+                        updateModal("observacion", e.target.value)
+                      }
+                    />
+                  </Field>
+                </>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setModal(null)}
+                disabled={busy}
+              >
+                Cancelar
+              </button>
+              <button className="primary" disabled={busy}>
+                <Save size={16} />
+                Guardar{modal.kind === "grade" ? " nota pendiente" : ""}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {modal?.kind === "help" && (
+        <Modal title={modal.title} onClose={() => setModal(null)}>
+          <div className="modal-body help">
+            <ol>
+              <li>Registra los datos de la institución en Configuración.</li>
+              <li>Agrega estudiantes e inscríbelos en cursos individuales.</li>
+              <li>Registra cada nota y su mes académico en Calificaciones.</li>
+              <li>
+                En Informes, elige categoría, mes y las notas que incluirás.
+              </li>
+              <li>
+                Revisa la vista previa. Después de entregar las notas a
+                Dirección, confirma expresamente la entrega.
+              </li>
+              <li>
+                Consulta, descarga y rectifica desde Historial. Conserva
+                respaldos en otro dispositivo.
+              </li>
+            </ol>
+            <div className="info-note">
+              <ShieldCheck size={22} />
+              <p>
+                Guardar una nota, consultar pendientes o descargar un PDF no la
+                marca como presentada.
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {modal?.kind === "shift" && (
+        <Modal title={modal.title} onClose={() => setModal(null)}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (
+                Object.hasOwn(
+                  (settingsDraft || data.settings).horarios,
+                  modal.data.name.trim(),
+                )
+              ) {
+                setNotice({
+                  error: true,
+                  text: "Ya existe un turno con ese nombre.",
+                });
+                return;
+              }
+              setSettingsDraft({
+                ...(settingsDraft || data.settings),
+                horarios: {
+                  ...(settingsDraft || data.settings).horarios,
+                  [modal.data.name.trim()]: modal.data.schedule.trim(),
+                },
+              });
+              setModal(null);
+            }}
+          >
+            <div className="modal-body">
+              <Field label="Turno">
+                <input
+                  required
+                  maxLength={120}
+                  value={modal.data.name}
+                  onChange={(e) => updateModal("name", e.target.value)}
+                />
+              </Field>
+              <Field label="Días y horas">
+                <input
+                  required
+                  value={modal.data.schedule}
+                  onChange={(e) => updateModal("schedule", e.target.value)}
+                />
+              </Field>
+            </div>
+            <div className="modal-actions">
+              <button className="primary">Agregar a configuración</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {modal?.kind === "restore" && (
+        <Modal title={modal.title} onClose={() => !busy && setModal(null)}>
+          <div className="modal-body">
+            <div className="warning-note">
+              <AlertCircle size={23} />
+              <p>
+                Se reemplazarán los estudiantes, las notas y los informes del
+                espacio {demo ? "de demostración" : "real"}. Se creará una copia
+                previa automáticamente.
+              </p>
+            </div>
+            <p>
+              Archivo: <strong>{modal.file.name}</strong>
+            </p>
+            <label className="check-field">
+              <input
+                type="checkbox"
+                checked={!!modal.confirmed}
+                onChange={(e) =>
+                  setModal({ ...modal, confirmed: e.target.checked })
+                }
+              />
+              Confirmo que deseo reemplazar los datos actuales con este
+              respaldo.
+            </label>
+          </div>
+          <div className="modal-actions">
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setModal(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              className="primary"
+              disabled={busy || !modal.confirmed}
+              onClick={() =>
+                act(async () => {
+                  const response = await fetch("/api/restore", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/zip",
+                      "X-CEICOM-Request": "1",
+                      "X-CEICOM-Demo": demo ? "1" : "0",
+                      "X-CEICOM-Confirm": "true",
+                    },
+                    body: modal.file,
+                  });
+                  const r = await response.json();
+                  if (!response.ok) throw new Error(r.error);
+                  setModal(null);
+                  setPending(null);
+                  await reload();
+                  setNotice({
+                    text: `Respaldo restaurado. Copia previa en ${r.recovery}`,
+                  });
+                })
+              }
+            >
+              Restaurar y conservar copia previa
+            </button>
+          </div>
+        </Modal>
+      )}
+      {report && (
+        <Modal
+          title={`Informe #${String(report.id).padStart(4, "0")} · ${report.categoria}`}
+          subtitle={`Mes académico: ${report.periodo} · Versión ${report.version} · ${report.estado}`}
+          onClose={() => !busy && setReport(null)}
+          wide
+        >
+          <div className="modal-body">
+            <div className="report-preview-head">
+              <div>
+                <strong>{report.contenido.encabezado.institucion}</strong>
+                <p>
+                  {report.contenido.encabezado.destinatario ||
+                    "Destinatario sin configurar"}{" "}
+                  · {report.contenido.encabezado.cargo_destinatario}
+                </p>
+                <small>
+                  Fecha de entrega:{" "}
+                  {report.contenido.fecha_presentacion || "Sin confirmar"}
+                </small>
+              </div>
+              <Status value={report.estado} />
+            </div>
+            {report.motivo && (
+              <div className="info-note">
+                <History size={17} />
+                <p>Rectificación: {report.motivo}</p>
+              </div>
+            )}
+            <Table
+              headers={[
+                "ESTUDIANTE",
+                "CURSO",
+                "TURNO",
+                "NOTA",
+                "MES DE NOTA",
+                ...(rectify ? ["NUEVA NOTA"] : []),
+              ]}
+            >
+              {report.contenido.filas.map((row) => (
+                <tr key={row.grade_id}>
+                  <td>
+                    <strong>{row.estudiante}</strong>
+                  </td>
+                  <td>{row.curso}</td>
+                  <td>{row.turno}</td>
+                  <td>{row.valor}</td>
+                  <td>{row.periodo}</td>
+                  {rectify && (
+                    <td>
+                      <input
+                        type="number"
+                        aria-label={`Rectificar ${row.estudiante} ${row.curso}`}
+                        min={data.settings.minimo}
+                        max={data.settings.maximo}
+                        step="0.01"
+                        value={corrections[row.grade_id] ?? ""}
+                        placeholder="Sin cambio"
+                        onChange={(e) => {
+                          const next = { ...corrections };
+                          if (e.target.value === "") delete next[row.grade_id];
+                          else next[row.grade_id] = e.target.value;
+                          setCorrections(next);
+                        }}
+                      />
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </Table>
+            <div className="report-export">
+              {exportButton("pdf")}
+              {exportButton("xlsx")}
+              {report.estado !== "borrador" && !rectify && (
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setRectify(true);
+                    setConfirmed(false);
+                  }}
+                >
+                  <PenLine size={16} />
+                  Crear rectificación
+                </button>
+              )}
+            </div>
+            {(report.estado === "borrador" || rectify) && (
+              <form onSubmit={submitReport} className="delivery-form">
+                <div className="info-note">
+                  <ShieldCheck size={19} />
+                  <p>
+                    {rectify
+                      ? "La corrección se guardará como una nueva versión. El informe original seguirá disponible."
+                      : "Este borrador aún no presenta ninguna nota. Confirma únicamente después de entregar estas notas a Dirección."}
+                  </p>
+                </div>
+                <div className="form-grid">
+                  <Field label="Responsable de la entrega *">
+                    <input
+                      required
+                      value={responsible}
+                      onChange={(e) => setResponsible(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Fecha real de entrega *">
+                    <input
+                      type="date"
+                      required
+                      value={delivery}
+                      onChange={(e) => setDelivery(e.target.value)}
+                    />
+                  </Field>
+                  {rectify && (
+                    <Field label="Motivo de la rectificación *">
+                      <textarea
+                        required
+                        maxLength={500}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                      />
+                    </Field>
+                  )}
+                </div>
+                <label className="check-field explicit">
+                  <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(e) => setConfirmed(e.target.checked)}
+                  />
+                  Confirmo que YA ENTREGUÉ{" "}
+                  {rectify ? "esta rectificación" : "exactamente estas notas"} a
+                  Dirección Académica.
+                </label>
+                <div className="form-actions">
+                  <button
+                    className="primary"
+                    disabled={
+                      busy ||
+                      !confirmed ||
+                      (rectify && !Object.keys(corrections).length)
+                    }
+                  >
+                    <CheckCircle2 size={17} />
+                    {rectify
+                      ? "Confirmar rectificación y crear versión"
+                      : "Confirmar entrega y cerrar informe"}
+                  </button>
+                </div>
+              </form>
+            )}
+            {report.estado !== "borrador" && !rectify && (
+              <div className="info-note">
+                <ShieldCheck size={18} />
+                <p>
+                  Instantánea protegida. Los cambios posteriores en estudiantes
+                  y cursos no modifican este documento. Responsable:{" "}
+                  {report.responsable}.
+                </p>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+function StudentName({ student: s }) {
+  return (
+    <div className="student-name">
+      <span className="student-avatar">
+        {s.nombres[0]}
+        {s.apellidos[0]}
+      </span>
+      <div>
+        <strong>
+          {s.nombres} {s.apellidos}
+        </strong>
+        <small>Estudiante #{String(s.id).padStart(4, "0")}</small>
+      </div>
+    </div>
+  );
+}
+createRoot(document.getElementById("root")).render(<App />);
