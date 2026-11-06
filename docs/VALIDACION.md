@@ -28,7 +28,7 @@ Comprobaciones realizadas:
 
 Se generaron dos informes de demostración (datos explícitamente ficticios), con notas de octubre de 2026 y entrega el 4 de noviembre. Se inspeccionaron visualmente capturas de la interfaz y una página PDF renderizada. Se incluyeron fuentes en PDF para no depender de las fuentes del equipo destino.
 
-**No ejecutado:** compilación PyInstaller para Windows, prueba del exe en Windows 11, impresión física y uso en USB real. `build_windows.bat` y el flujo de GitHub Actions preparan esas comprobaciones en Windows. El ZIP de fuentes no es un portable compilado. No se ha publicado el entorno ni ejecutado el flujo remoto de GitHub Actions.
+**Actualización Windows:** GitHub Actions completó correctamente las 18 pruebas, la compilación PyInstaller y la comprobación automática del arranque del EXE y sus siete pantallas en Windows (Qt offscreen), para el commit 47307f7. El portable compilado está en https://github.com/mariarenepinedo234-ux/notaslabo/actions/runs/42228580481. Pendientes: interacción manual en Windows 11, impresión física y uso en USB real. El ZIP de fuentes sigue siendo distinto del artefacto portable compilado. No se ha publicado el entorno en la nube.
 
 ## Corrección del inicio en Windows
 

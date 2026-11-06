@@ -6,6 +6,12 @@ En GitHub, seleccione la rama `ceicom-primera-version` y use **Code → Download
 
 Primera versión funcional de escritorio en español, offline, con Python 3.12+, PySide6 y SQLite. Colores guindo, amarillo y gris. Producción inicia vacía; incluye el catálogo solicitado de 20 cursos, con inscripciones individuales independientes.
 
+## Abrir el portable compilado (sin Python)
+
+Ya existe una compilación Windows con pruebas y comprobación automática del arranque aprobadas: [descargar desde GitHub Actions](https://github.com/mariarenepinedo234-ux/notaslabo/actions/runs/42228580481#artifacts). Inicie sesión en GitHub y, en **Artifacts**, descargue **CEICOM-Portable-Windows**.
+
+Extraiga el ZIP descargado; dentro encontrará `CEICOM_Portable_Windows.zip`. Extraiga también ese archivo y abra `SistemaAcademico/SistemaAcademico.exe`. Conserve `_internal` junto al EXE. Para usar los datos ficticios, abra una terminal dentro de esa carpeta y ejecute `SistemaAcademico.exe --demo`. Sin ese argumento abre la base de producción vacía.
+
 ## Ejecutar desde el código
 
 En Windows, instale Python **3.12 de 64 bits** y ejecute `iniciar_windows.bat`. Para demostración: `iniciar_windows.bat --demo`.
@@ -48,7 +54,7 @@ Pegue esa ruta en la barra de direcciones del Explorador de Windows. El EXE tamb
 
 También se incluye un flujo de GitHub Actions para compilar en Windows al subir el proyecto o iniciarlo manualmente. Su inclusión no significa que ese flujo se haya ejecutado. PyInstaller compila para el sistema donde se ejecuta; no genera un exe de Windows desde Linux.
 
-**Estado de validación:** las pruebas y la apertura de la interfaz se ejecutaron en Linux con Qt offscreen. El ejecutable Windows y su comportamiento en Windows 11/USB requieren compilación y prueba en Windows; no se entrega un `.exe` ficticio.
+**Estado de validación:** 16 pruebas aprobadas en Linux y 2 pruebas Windows omitidas allí; las 18 pruebas, la compilación PyInstaller y el arranque del EXE con sus siete pantallas se completaron correctamente en un runner Windows de GitHub Actions. La prueba de arranque usa Qt offscreen. La interacción manual, impresión física y uso en una USB en Windows 11 siguen pendientes de comprobar en el equipo del usuario.
 
 ## Datos portables y USB de solo lectura
 
