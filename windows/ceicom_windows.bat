@@ -105,6 +105,19 @@ if errorlevel 1 exit /b 1
 set "QT_QPA_PLATFORM="
 .venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --windowed --onedir --name SistemaAcademico --collect-all reportlab main.py
 if errorlevel 1 exit /b 1
+rem Verificar el EXE real, sus recursos y el arranque de las siete pantallas.
+set "CEICOM_HOME=%TEMP%\CEICOM_verificacion_%RANDOM%"
+set "QT_QPA_PLATFORM=offscreen"
+start "" /wait "dist\SistemaAcademico\SistemaAcademico.exe" --demo --comprobar-inicio
+if errorlevel 1 (
+  echo El EXE no supero la comprobacion de inicio. Revise CEICOM_aplicacion.log en TEMP.
+  exit /b 1
+)
+if not exist "%CEICOM_HOME%\demo\datos\inicio_verificado.txt" (
+  echo El EXE no confirmo la carga de la interfaz. No se publicara el portable.
+  exit /b 1
+)
+set "QT_QPA_PLATFORM="
 if not exist dist\SistemaAcademico\datos mkdir dist\SistemaAcademico\datos
 if not exist dist\SistemaAcademico\Informes mkdir dist\SistemaAcademico\Informes
 copy /y docs\GUIA_USUARIO.md dist\SistemaAcademico\GUIA_USUARIO.md >nul

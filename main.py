@@ -56,9 +56,20 @@ def main():
         window = Window(store, demo='--demo' in sys.argv)
         window.show()
         logger.info('Ventana CEICOM abierta correctamente.')
-        return app.exec()
+        smoke_test = '--comprobar-inicio' in sys.argv
+        if smoke_test:
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(250, app.quit)
+        result = app.exec()
+        if smoke_test and result == 0:
+            if window.tabs.count() != 7:
+                raise RuntimeError('No se cargaron todas las pantallas.')
+            (root / 'datos/inicio_verificado.txt').write_text('Interfaz y siete pantallas cargadas correctamente.', encoding='utf-8')
+        return result
     except Exception as error:
         logger.exception('Error al iniciar CEICOM')
+        if '--comprobar-inicio' in sys.argv:
+            return 1
         _show_error(app, f'No se pudo iniciar CEICOM:\n{error}\n\nRegistro de diagnóstico:\n{log_path}\n\nSi el USB es de solo lectura, configure CEICOM_HOME en una carpeta escribible.')
         return 1
     finally:

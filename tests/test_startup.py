@@ -64,10 +64,10 @@ def test_windows_launcher_reports_missing_configured_python(tmp_path, script):
     empty_path.mkdir()
     env = dict(os.environ, CEICOM_PYTHON=str(empty_path / 'python_ausente.exe'), CEICOM_NO_PAUSE='1', TEMP=str(tmp_path))
     cmd = str(Path(os.environ['SystemRoot']) / 'System32/cmd.exe')
-    result = subprocess.run([cmd, '/d', '/c', f'call "{project / script}"'], cwd=project, env=env, capture_output=True, timeout=20)
+    result = subprocess.run(f'"{cmd}" /d /s /c ""{project / script}""', cwd=project, env=env, capture_output=True, timeout=20)
     output = result.stdout.decode(errors='replace')
     assert result.returncode == 1
-    assert 'No se encontro Python 3.12' in output
+    assert 'No se encontro Python 3.12' in output, result.stderr.decode(errors='replace')
     assert 'NO SE PUDO COMPLETAR' in output
     action = 'iniciar' if script.startswith('iniciar') else 'compilar'
     assert 'No se encontro Python 3.12' in (tmp_path / f'CEICOM_{action}.log').read_text(errors='replace')

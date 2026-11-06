@@ -20,6 +20,8 @@ jobs:
         if: failure()
         shell: pwsh
         run: |
+          $appLog = Join-Path $env:TEMP 'CEICOM_aplicacion.log'
+          if (Test-Path $appLog) { Get-Content $appLog -Tail 15 | ForEach-Object { Write-Output "::error title=Inicio EXE::$_" } }
           $log = Join-Path $env:TEMP 'CEICOM_compilar.log'
           if (Test-Path $log) {
             $message = (Get-Content $log -Tail 25) -join "`n"
