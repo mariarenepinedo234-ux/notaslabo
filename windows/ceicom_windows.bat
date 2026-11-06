@@ -45,16 +45,25 @@ if exist .venv\Scripts\python.exe (
   echo Renombre .venv y vuelva a ejecutar. No se borrara automaticamente.
   exit /b 1
 )
+if defined CEICOM_PYTHON goto custom_python
 py -3.12 -c "import sys,struct; assert sys.version_info[:2]==(3,12) and struct.calcsize('P')==8" >nul 2>&1
 if not errorlevel 1 goto create_py
 python -c "import sys,struct; assert sys.version_info[:2]==(3,12) and struct.calcsize('P')==8" >nul 2>&1
 if not errorlevel 1 goto create_python
+:no_python
 echo No se encontro Python 3.12 de 64 bits.
 echo Instale Python 3.12 x64 desde https://www.python.org/downloads/windows/
 echo Active el lanzador py o la opcion Add python.exe to PATH durante la instalacion.
 echo Despues cierre esta ventana y vuelva a ejecutar el archivo BAT.
 echo Python solo es necesario para iniciar desde codigo o compilar el EXE.
 exit /b 1
+
+:custom_python
+"%CEICOM_PYTHON%" -c "import sys,struct; assert sys.version_info[:2]==(3,12) and struct.calcsize('P')==8" >nul 2>&1
+if errorlevel 1 goto no_python
+"%CEICOM_PYTHON%" -m venv .venv
+if errorlevel 1 goto venv_error
+goto dependencies
 
 :create_py
 py -3.12 -m venv .venv

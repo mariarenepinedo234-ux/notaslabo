@@ -28,6 +28,8 @@ Extraiga **todo** el ZIP con «Extraer todo» antes de abrir archivos. Para usar
 
 Los BAT comprueban Python **3.12 x64** y dejan el resultado visible hasta pulsar una tecla. Si Python falta, muestran cómo instalarlo. El primer inicio requiere Internet para instalar dependencias; los siguientes reutilizan las bibliotecas instaladas sin descargarlas otra vez.
 
+Si Python está instalado fuera del PATH, puede indicar su ruta con `set "CEICOM_PYTHON=C:\ruta\python.exe"` antes de ejecutar el BAT. Se comprueba que sea Python 3.12 x64.
+
 Si se produce un fallo, copie el texto de la ventana o abra el registro:
 
 - Inicio desde código: `%TEMP%\CEICOM_iniciar.log`.

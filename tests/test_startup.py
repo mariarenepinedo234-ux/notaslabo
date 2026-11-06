@@ -52,7 +52,7 @@ def test_unwritable_data_folder_shows_error(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(sys.platform != 'win32', reason='Requiere cmd.exe de Windows')
 @pytest.mark.parametrize('script', ['iniciar_windows.bat', 'build_windows.bat'])
-def test_windows_launcher_reports_missing_python(tmp_path, script):
+def test_windows_launcher_reports_missing_configured_python(tmp_path, script):
     project = tmp_path / 'carpeta con espacios'
     project.mkdir()
     source = Path(__file__).resolve().parent.parent
@@ -62,7 +62,7 @@ def test_windows_launcher_reports_missing_python(tmp_path, script):
     (project / 'requirements.txt').write_text('')
     empty_path = tmp_path / 'sin_python'
     empty_path.mkdir()
-    env = dict(os.environ, PATH=str(empty_path), CEICOM_NO_PAUSE='1', TEMP=str(tmp_path))
+    env = dict(os.environ, CEICOM_PYTHON=str(empty_path / 'python_ausente.exe'), CEICOM_NO_PAUSE='1', TEMP=str(tmp_path))
     cmd = str(Path(os.environ['SystemRoot']) / 'System32/cmd.exe')
     result = subprocess.run([cmd, '/d', '/c', f'call "{project / script}"'], cwd=project, env=env, capture_output=True, timeout=20)
     output = result.stdout.decode(errors='replace')

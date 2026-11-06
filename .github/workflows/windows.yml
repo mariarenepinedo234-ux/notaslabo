@@ -22,7 +22,7 @@ jobs:
         run: |
           $log = Join-Path $env:TEMP 'CEICOM_compilar.log'
           if (Test-Path $log) {
-            $message = (Get-Content $log -Tail 100) -join "`n"
+            $message = (Get-Content $log -Tail 25) -join "`n"
             $message = $message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
             Write-Output "::error title=Diagnostico CEICOM en Windows::$message"
           }
