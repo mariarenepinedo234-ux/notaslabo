@@ -1,4 +1,5 @@
 """Respaldos consistentes, verificados y restauración con recuperación previa."""
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -23,7 +24,7 @@ def backup(store, destination):
         stage = Path(temp)
         db_path = stage / 'datos/ceicom.sqlite3'
         db_path.parent.mkdir()
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             store.db.backup(conn)
         shutil.copytree(store.root / 'Informes', stage / 'Informes')
         files = [p for p in stage.rglob('*') if p.is_file()]
@@ -53,7 +54,7 @@ def validate(archive_path):
         with tempfile.TemporaryDirectory() as temp:
             db = Path(temp)/'verify.sqlite3'
             db.write_bytes(archive.read('datos/ceicom.sqlite3'))
-            with sqlite3.connect(db) as conn:
+            with closing(sqlite3.connect(db)) as conn:
                 if conn.execute('PRAGMA integrity_check').fetchone()[0] != 'ok' or conn.execute('PRAGMA foreign_key_check').fetchall():
                     raise ValueError('Base de datos dañada.')
                 required = {'students','courses','grades','reports','report_items','enrollments','settings','audit_log'}

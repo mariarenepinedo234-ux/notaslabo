@@ -16,6 +16,23 @@ jobs:
       - name: Pruebas y compilación
         shell: cmd
         run: build_windows.bat
+      - name: Mostrar diagnóstico si falla Windows
+        if: failure()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:TEMP 'CEICOM_compilar.log'
+          if (Test-Path $log) {
+            $message = (Get-Content $log -Tail 100) -join "`n"
+            $message = $message.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Diagnostico CEICOM en Windows::$message"
+          }
+      - name: Conservar registro de compilación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CEICOM-Diagnostico-Windows
+          path: ${{ runner.temp }}/CEICOM_compilar.log
+          if-no-files-found: ignore
       - name: Publicar artefacto de compilación
         uses: actions/upload-artifact@v4
         with:
