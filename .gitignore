@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+datos/
+Informes/
+demo/
+build/
+dist/
+*.spec
